@@ -15,10 +15,10 @@ backend/app.py                 REST API dan analisis
 backend/train_model.py         Pelatihan + evaluasi holdout lintas sumber
 backend/fitur_struktural.py    Ekstraksi sinyal gabungan untuk fitur ML
 backend/model_meta.json       Fingerprint data, parameter, dan versi lingkungan (dibuat saat pelatihan)
-dataset/emails-source.zip      Dataset biner yang diberikan untuk proyek
-dataset/dataset_email.zip      30 contoh sintetis GPT (10 per kelas)
+dataset/emails-source.zip      Dataset lokal yang disediakan pemilik proyek (tidak di-commit)
+dataset/dataset_email.zip      Contoh sintetis lokal (tidak di-commit)
 dataset/prepare_dataset.py     Penggabungan, pemetaan label, deduplikasi, sampling
-dataset/emails.csv             Dataset terkurasi: teks,label,sumber
+dataset/emails.csv             Dataset terkurasi lokal (tidak di-commit)
 dataset/README.md              Sumber, atribusi, lisensi, metode persiapan
 docs/evaluasi-model.md         Ringkasan metrik yang mudah dibaca
 docs/evaluasi-model.json       Metrik terstruktur per sumber (dibuat saat pelatihan)
@@ -37,25 +37,25 @@ Dari PowerShell di folder proyek:
 
 ```powershell
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe dataset\prepare_dataset.py
 .\.venv\Scripts\python.exe backend\train_model.py
 .\.venv\Scripts\python.exe backend\app.py
 ```
 
 Buka `http://127.0.0.1:5000`. Jika `.venv` belum ada, buat dengan `py -m venv .venv` dahulu. Pelatihan membuat artefak model, metadata reproducibility, dan laporan evaluasi di folder `backend/` serta `docs/`.
 
-### Bangun ulang dataset (opsional)
+### Persiapan data untuk checkout baru
 
 ```powershell
 .\.venv\Scripts\python.exe dataset\prepare_dataset.py
 ```
 
-Skrip akan mengambil MeAJOR dari Zenodo jika sumber CSV belum tersedia. Untuk menjalankan demo sehari-hari, `emails.csv` yang telah disiapkan sudah tersedia sehingga pengunduhan tidak diperlukan.
+Sumber email dan hasil gabungannya tidak disertakan di Git karena berisi konten pesan. Untuk checkout baru, siapkan arsip berizin `emails-source.zip` serta `dataset_email.zip` di folder `dataset/`; skrip mengambil MeAJOR dari Zenodo bila CSV sumber belum tersedia. Jalankan `prepare_dataset.py`, lalu `train_model.py`, kemudian mulai aplikasi. Artefak model dan database dibuat lokal dan tidak di-commit.
 
 ## API lokal
 
 - `POST /api/analyze` — JSON berisi `teks_email` dan opsional `alamat_pengirim`/`alamat_balasan`; mengembalikan prediksi, probabilitas tiga kelas, dan indikator heuristik. Alamat hanya dibandingkan selama scan dan tidak disimpan.
 - `POST /api/analyze-file` — `multipart/form-data` dengan field `berkas_email` berupa `.eml`, `.txt`, atau `.pdf` (maksimal 10 MB); mengurai header, teks, dan tautan `href`/anotasi PDF lalu menjalankan model yang sama.
-- `POST /api/check-redirect` — memeriksa rantai redirect setelah pengguna menekan tombol pada tautan tertentu. Mengirim `HEAD`, memakai `GET Range` satu byte hanya bila `HEAD` ditolak, membatasi lima lompatan/30 detik, memblokir alamat nonpublik, dan tidak membaca isi halaman. Server situs yang diperiksa dapat mencatat alamat IP komputer.
 - `GET /api/history?limit=20` — riwayat terbaru, maksimal 100 entri.
 - `GET /api/stats` — jumlah analisis per label.
 - `DELETE /api/history` — hapus riwayat lokal.
@@ -64,7 +64,7 @@ Batas input 20.000 karakter. Riwayat menyimpan metadata, hash, dan cuplikan maks
 
 ### Memindai email yang diunduh
 
-Di Gmail, buka menu tiga titik pada pesan lalu pilih **Download message**. Di Check Mail pilih berkas `.eml` yang diunduh. Berkas `.txt` dan `.pdf` juga dapat dipilih (maksimal 10 MB). Lampiran PDF di dalam EML dan PDF langsung akan diekstrak teks/tautannya bila PDF memiliki lapisan teks. PDF hasil scan gambar serta gambar lampiran terdeteksi, tetapi OCR belum tersedia; jika badan email kosong, sistem menolak membuat prediksi dari header saja. Lampiran lain hanya dicatat tipenya dan tidak dieksekusi. Secara default URL diperiksa pasif. Pengguna dapat menekan tombol **Lacak redirect** pada kartu tautan tertentu untuk mengirim permintaan `HEAD` ke domain terkait; bila ditolak, Check Mail mencoba `GET Range` terbatas tanpa membaca isi halaman. Situs dapat mencatat alamat IP komputer; alamat lokal/private diblokir, dan pemeriksaan dibatasi lima lompatan/30 detik. Sebagian situs menolak kedua metode atau tidak merespons, sehingga tujuan akhir mungkin tidak terungkap. Tidak ada layanan AI eksternal yang menerima email; kesimpulan klasifikasi berasal dari model ML lokal dan aturan heuristik.
+Di Gmail, buka menu tiga titik pada pesan lalu pilih **Download message**. Di Check Mail pilih berkas `.eml` yang diunduh. Berkas `.txt` dan `.pdf` juga dapat dipilih (maksimal 10 MB). Lampiran PDF di dalam EML dan PDF langsung akan diekstrak teks/tautannya bila PDF memiliki lapisan teks. PDF hasil scan gambar serta gambar lampiran terdeteksi, tetapi OCR belum tersedia; jika badan email kosong, sistem menolak membuat prediksi dari header saja. Lampiran lain hanya dicatat tipenya dan tidak dieksekusi. URL dianalisis secara pasif dari struktur yang tersedia, seperti alamat IP, pemendek tautan, Punycode, atau parameter pengalih. Check Mail tidak membuka URL, mengirim permintaan jaringan ke domainnya, mengikuti redirect, atau menampilkan peta tujuan. Hasil tautan adalah temuan diagnostik, bukan pemeriksaan reputasi atau jaminan keamanan situs. Tidak ada layanan AI eksternal yang menerima email; kesimpulan klasifikasi berasal dari model ML lokal dan aturan heuristik.
 
 ## Dataset dan batas interpretasi
 

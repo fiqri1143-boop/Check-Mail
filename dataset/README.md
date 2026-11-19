@@ -4,6 +4,8 @@
 
 Arsip `emails-source.zip` diberikan untuk proyek ini. Isinya 5.728 contoh dengan kolom `text` dan `spam`; nilai `0` dipetakan menjadi `Normal`, nilai `1` menjadi `Spam`. Identitas bibliografis/lisensi arsip tidak disertakan di dalam nama file yang diterima, sehingga atribusi sumber asal perlu ditambahkan pemilik arsip bila tersedia.
 
+Arsip ini, `dataset_email.zip`, dan hasil `emails.csv` dikecualikan dari Git karena berisi konten email. Untuk mereproduksi dataset dari checkout baru, pemilik proyek perlu menempatkan arsip yang boleh digunakan di folder `dataset/` secara lokal.
+
 ## Dataset phishing MeAJOR
 
 Untuk melengkapi kelas phishing, proyek mengambil label dan konten dari rilis MeAJOR v2.0. CSV sumber menyatakan label `0 = benign` dan `1 = phishing`, dengan sub-sumber TREC-05, TREC-06, dan TREC-07. Data telah dianonimkan oleh pembuat dataset. Rilis juga menyebut sumber publik lain, tetapi file CSV yang dianalisis di proyek ini menampilkan tiga nilai sumber TREC tersebut.

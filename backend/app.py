@@ -3,23 +3,19 @@ from __future__ import annotations
 
 import hashlib
 import html
-import http.client
 import io
 from html.parser import HTMLParser
 import ipaddress
 import json
 import re
-import socket
-import ssl
 import sqlite3
 import sys
-import time
 from email import policy
 from email.parser import BytesParser
 from datetime import datetime, timezone
 from email.utils import parseaddr
 from pathlib import Path
-from urllib.parse import parse_qs, quote, urljoin, urlparse
+from urllib.parse import parse_qs, urlparse
 
 import joblib
 from pypdf import PdfReader
@@ -86,8 +82,6 @@ def deteksi_permintaan_data_pribadi(teks: str) -> bool:
 app = Flask(__name__, static_folder=None)
 app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024 + 64 * 1024
 BATAS_BERKAS_EMAIL = 10 * 1024 * 1024
-BATAS_REDIRECT = 5
-BATAS_WAKTU_REDIRECT = 30
 
 model = None
 vectorizer = None
@@ -222,96 +216,6 @@ def domain_url(url: str) -> str:
         return ""
 
 
-def validasi_url_publik(url: str) -> tuple[str, int, str, str]:
-    """Validasi URL dan pin ke alamat IP publik agar pemeriksaan tak menjadi SSRF lokal."""
-    parsed = urlparse(url)
-    skema = parsed.scheme.lower()
-    if skema not in {"http", "https"} or not parsed.hostname or parsed.username or parsed.password:
-        raise ValueError("URL harus HTTP/HTTPS publik dan tidak boleh berisi kredensial.")
-    host = parsed.hostname.rstrip(".").encode("idna").decode("ascii").lower()
-    port = parsed.port or (443 if skema == "https" else 80)
-    if port != (443 if skema == "https" else 80):
-        raise ValueError("Pemeriksaan hanya mengizinkan port web standar 80/443.")
-    try:
-        alamat = [ipaddress.ip_address(host)]
-    except ValueError:
-        try:
-            hasil_dns = socket.getaddrinfo(host, port, type=socket.SOCK_STREAM)
-        except OSError as kesalahan:
-            raise ValueError("Domain tidak dapat ditemukan melalui DNS.") from kesalahan
-        alamat = list({ipaddress.ip_address(item[4][0].split("%", 1)[0]) for item in hasil_dns})
-    if not alamat or any(not ip.is_global for ip in alamat):
-        raise ValueError("Alamat tujuan bukan IP publik; koneksi diblokir demi keamanan lokal.")
-    return skema, port, host, str(alamat[0])
-
-
-def periksa_redirect_url(url: str) -> dict:
-    """Ikuti hanya header redirect dengan HEAD; tidak mengunduh isi halaman."""
-    if len(url) > 2048:
-        raise ValueError("URL terlalu panjang untuk diperiksa.")
-    alamat_sekarang = url
-    kunjungan = set()
-    rantai = []
-    tenggat = time.monotonic() + BATAS_WAKTU_REDIRECT
-    konteks_tls = ssl.create_default_context()
-    for _ in range(BATAS_REDIRECT + 1):
-        if alamat_sekarang in kunjungan:
-            return {"rantai": rantai, "url_akhir": alamat_sekarang, "status": "Siklus redirect terdeteksi", "terblokir": True}
-        kunjungan.add(alamat_sekarang)
-        skema, port, host, ip_tujuan = validasi_url_publik(alamat_sekarang)
-        parsed = urlparse(alamat_sekarang)
-        sisa = tenggat - time.monotonic()
-        if sisa <= 0:
-            return {"rantai": rantai, "url_akhir": alamat_sekarang, "status": "Batas waktu pemeriksaan tercapai", "terblokir": False}
-        path = quote(parsed.path or "/", safe="/%:@!$&'()*+,;=-._~")
-        query = quote(parsed.query, safe="/%?:@!$&'()*+,;=-._~")
-        target = f"{path}?{query}" if query else path
-        host_header = f"[{host}]" if ":" in host else host
-        if port != (443 if skema == "https" else 80):
-            host_header = f"{host_header}:{port}"
-        def kirim_permintaan(metode: str) -> tuple[int, str | None]:
-            sock = socket.create_connection((ip_tujuan, port), timeout=min(5.0, sisa))
-            try:
-                sock.settimeout(min(5.0, sisa))
-                if skema == "https":
-                    sock = konteks_tls.wrap_socket(sock, server_hostname=host)
-                    sock.settimeout(min(5.0, sisa))
-                tambahan = "Range: bytes=0-0\r\n" if metode == "GET" else ""
-                permintaan = (f"{metode} {target} HTTP/1.1\r\nHost: {host_header}\r\n"
-                              "User-Agent: CheckMail-Redirect-Check/1.0\r\n"
-                              f"Accept: */*\r\n{tambahan}Connection: close\r\n\r\n")
-                sock.sendall(permintaan.encode("ascii"))
-                respons = http.client.HTTPResponse(sock)
-                respons.begin()
-                return respons.status, respons.getheader("Location")
-            finally:
-                sock.close()
-
-        metode = "HEAD"
-        status, lokasi = kirim_permintaan(metode)
-        if status in {405, 501}:
-            # Beberapa situs menolak HEAD. Coba GET Range satu byte, tanpa membaca body.
-            metode = "GET Range"
-            status, lokasi = kirim_permintaan("GET")
-        rantai.append({"url": alamat_sekarang, "kode_http": status, "metode": metode, "lokasi": lokasi or ""})
-        if status in {405, 501}:
-            return {"rantai": rantai, "url_akhir": alamat_sekarang,
-                    "status": f"Server menolak {metode}; tujuan redirect belum dapat dipastikan (HTTP {status})", "terblokir": False}
-        if status >= 400:
-            return {"rantai": rantai, "url_akhir": alamat_sekarang,
-                    "status": f"Server membatasi pemeriksaan; tujuan redirect belum dapat dipastikan (HTTP {status})", "terblokir": False}
-        if status not in {301, 302, 303, 307, 308} or not lokasi:
-            return {"rantai": rantai, "url_akhir": alamat_sekarang, "status": f"HTTP {status}; tidak ada redirect lanjutan", "terblokir": False}
-        tujuan = urljoin(alamat_sekarang, lokasi)
-        try:
-            validasi_url_publik(tujuan)
-        except ValueError as kesalahan:
-            rantai.append({"url": tujuan[:2048], "kode_http": None, "lokasi": ""})
-            return {"rantai": rantai, "url_akhir": tujuan[:2048], "status": f"Redirect diblokir: {kesalahan}", "terblokir": True}
-        alamat_sekarang = tujuan
-    return {"rantai": rantai, "url_akhir": alamat_sekarang, "status": f"Batas {BATAS_REDIRECT} redirect tercapai", "terblokir": False}
-
-
 def parse_berkas_email(isi: bytes) -> dict:
     """Parse EML/HTML secara lokal; hanya pilih HTTP(S), abaikan cid/mailto/script."""
     pesan = BytesParser(policy=policy.default).parsebytes(isi)
@@ -391,7 +295,7 @@ def parse_berkas_email(isi: bytes) -> dict:
         if host_asli.startswith("xn--") or ".xn--" in host_asli:
             tanda.append("Domain memakai Punycode")
         if host_asli in {"bit.ly", "tinyurl.com", "t.co", "is.gd", "cutt.ly", "rb.gy"}:
-            tanda.append("Tautan pendek; tujuan akhir belum diperiksa")
+            tanda.append("Tautan dipersingkat; alamat akhir tidak terlihat pada pesan")
         if host_tampil and host_tampil != host_asli and not host_tampil.endswith("." + host_asli):
             tanda.append("Teks tautan berbeda dari domain tujuan")
         domain_tanam = ""
@@ -454,7 +358,7 @@ def jalankan_analisis(teks_email: str, alamat_pengirim: str = "", alamat_balasan
     label_model = max(probabilitas, key=probabilitas.get)
     label = label_model
     indikator = cari_indikator(teks_email, alamat_pengirim, alamat_balasan)
-    # Proses temuan tautan sebelum keputusan gabungan agar redirect yang
+    # Proses temuan tautan sebelum keputusan gabungan agar URL pengalih yang
     # menyembunyikan domain tujuan ikut dipertimbangkan, bukan hanya ditampilkan.
     if tautan:
         for item in tautan:
@@ -463,9 +367,8 @@ def jalankan_analisis(teks_email: str, alamat_pengirim: str = "", alamat_balasan
                 if "pengalih" in nama.lower() or item.get("domain_tanam"):
                     kode = "tautan_pengalih"
                 if not any(x["kode"] == kode and x.get("nama") == nama for x in indikator):
-                    domain_tujuan = item.get("domain_tanam") or item.get("domain", "tidak diketahui")
                     indikator.append({"kode": kode, "nama": nama,
-                        "penjelasan": f"Tautan memakai domain {item.get('domain', 'tidak diketahui')} dan menyimpan/menunjukkan tujuan {domain_tujuan}. Check Mail tidak membuka tautan atau mengikuti redirect.",
+                        "penjelasan": f"Tautan memakai domain pengalih {item.get('domain', 'tidak diketahui')} dan menyimpan alamat tujuan di dalam parameternya. Check Mail tidak membuka tautan atau memverifikasi situs tujuan.",
                         "tingkat": "tinggi" if kode in {"tautan_tidak_cocok", "tautan_pengalih"} else "sedang"})
     kode_indikator = {item["kode"] for item in indikator}
     ada_tautan_email = bool(tautan) or bool(
@@ -493,9 +396,14 @@ def jalankan_analisis(teks_email: str, alamat_pengirim: str = "", alamat_balasan
         label = "Normal"
         alasan_label = "Model teks mentah memilih Spam, tetapi isi menunjukkan konteks penjadwalan/kegiatan rutin tanpa indikator risiko atau tautan. Tetap pastikan email ini memang diharapkan."
     id_riwayat = simpan_analisis(teks_email, label, probabilitas, indikator)
+    ringkasan_tautan = [
+        {"domain": item.get("domain", ""), "teks_tampil": item.get("teks_tampil", ""),
+         "indikator": list(item.get("indikator", []))}
+        for item in (tautan or [])
+    ]
     return {"label": label, "label_model": label_model, "alasan_label": alasan_label,
             "probabilitas": probabilitas, "indikator": indikator,
-            "tautan": tautan or [], "catatan": "Skor model adalah estimasi teks, bukan jaminan keamanan."}, id_riwayat
+            "tautan": ringkasan_tautan, "catatan": "Skor model adalah estimasi teks, bukan jaminan keamanan."}, id_riwayat
 
 
 def simpan_analisis(teks_email: str, label: str, probabilitas: dict, indikator: list) -> int:
@@ -627,23 +535,6 @@ def ambil_statistik():
     per_label = {label: 0 for label in LABEL_VALID}
     per_label.update({r["label"]: r["jumlah"] for r in baris})
     return jsonify(berhasil=True, total=total, per_label=per_label)
-
-
-@app.post("/api/check-redirect")
-def periksa_redirect():
-    """Periksa redirect hanya setelah pengguna menekan tombol pada tautan tertentu."""
-    data = request.get_json(silent=True) or {}
-    url = data.get("url", "")
-    if not isinstance(url, str) or not url.strip():
-        return jsonify(berhasil=False, kesalahan="URL tidak tersedia."), 400
-    try:
-        hasil = periksa_redirect_url(url.strip())
-    except ValueError as kesalahan:
-        return jsonify(berhasil=False, kesalahan=str(kesalahan)), 400
-    except (OSError, ssl.SSLError, http.client.HTTPException) as kesalahan:
-        app.logger.info("Pemeriksaan redirect gagal: %s", kesalahan)
-        return jsonify(berhasil=False, kesalahan="Situs tidak merespons pemeriksaan redirect atau koneksi berakhir."), 502
-    return jsonify(berhasil=True, hasil=hasil, catatan="Pemeriksaan menghubungi domain redirect dengan HEAD atau GET Range; isi halaman tidak dibaca.")
 
 
 @app.delete("/api/history")

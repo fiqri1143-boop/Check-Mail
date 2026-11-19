@@ -106,15 +106,19 @@ function renderSkor(probabilitas) {
 function renderIndikator(indikator) {
   const wadah = document.querySelector('#daftar-indikator');
   wadah.replaceChildren();
-  document.querySelector('#jumlah-indikator').textContent = `${indikator.length} indikator`;
+  document.querySelector('#jumlah-indikator').textContent = `${indikator.length} temuan`;
   if (!indikator.length) {
-    wadah.append(buatElemen('p', 'no-indicator', 'Belum ada indikator umum yang ditemukan. Periksa alamat pengirim dan konteks pesan juga.'));
+    wadah.append(buatElemen('p', 'no-indicator', 'Tidak ditemukan pola risiko umum pada teks yang dianalisis. Periksa identitas pengirim dan konteks melalui kanal tepercaya.'));
     return;
   }
   indikator.forEach((item) => {
     const chip = buatElemen('div', 'indicator-chip');
     chip.dataset.tingkat = item.tingkat;
-    chip.append(buatElemen('strong', '', item.nama), buatElemen('span', '', item.penjelasan));
+    chip.append(
+      buatElemen('strong', '', item.nama),
+      buatElemen('small', 'indicator-level', `TINGKAT ${String(item.tingkat || 'informasi').toUpperCase()}`),
+      buatElemen('span', '', item.penjelasan)
+    );
     wadah.append(chip);
   });
 }
@@ -126,9 +130,9 @@ function tampilkanHasil(hasil, teksEmail) {
   document.querySelector('#ikon-vonis').textContent = hasil.label === 'Phishing' ? '!' : hasil.label === 'Spam' ? '↗' : '✓';
   document.querySelector('#label-hasil').textContent = hasil.label;
   const deskripsi = {
-    Normal: 'Email ini masuk kategori Normal berdasarkan konteks yang terdeteksi. Pastikan alamat pengirim dan isi pesannya memang sesuai harapan.',
-    Spam: 'Isi email mirip pesan promosi atau massal menurut model. Label ini bukan bukti bahwa pengirim palsu atau email adalah penipuan.',
-    Phishing: 'Pesan menunjukkan sinyal risiko tinggi. Jangan bayar atau berikan data sebelum memverifikasi melalui kanal resmi.'
+    Normal: 'Tidak ditemukan indikator kuat Spam atau Phishing pada teks yang dianalisis. Tetap verifikasi pengirim dan konteks sebelum mengikuti instruksi.',
+    Spam: 'Pola isi lebih menyerupai pesan promosi atau pengiriman massal. Kategori Spam tidak dengan sendirinya menunjukkan penipuan atau pemalsuan pengirim.',
+    Phishing: 'Ditemukan pola yang konsisten dengan upaya penipuan atau pengambilan informasi sensitif. Jangan membuka tautan, membalas, membayar, atau mengirim data sebelum verifikasi independen.'
   };
   document.querySelector('#teks-vonis').textContent = deskripsi[hasil.label] || hasil.catatan;
   const catatanKlasifikasi = document.querySelector('#catatan-klasifikasi');
@@ -145,9 +149,9 @@ function tampilkanHasil(hasil, teksEmail) {
     ? `Keputusan akhir: ${hasil.label}. Aturan risiko mengubah prediksi ML mentah (${labelModel}) berdasarkan indikator yang ditemukan. Buka rincian skor ML jika ingin membandingkan keduanya.`
     : `Keputusan akhir mengikuti prediksi ML: ${hasil.label}. Skor tetap merupakan estimasi, bukan jaminan keamanan.`;
   const tindakan = {
-    Normal: 'Jika pesan meminta data sensitif atau terasa tidak sesuai, verifikasi melalui kanal resmi.',
-    Spam: 'Kalau pesan menyangkut pembayaran atau akun, buka aplikasi/situs resmi secara mandiri untuk memeriksa statusnya. Jangan jadikan label model ini satu-satunya dasar untuk menandai pengirim sebagai spam.',
-    Phishing: 'Jangan klik, membalas, atau membagikan kode. Hubungi pengirim melalui alamat/nomor resmi yang kamu cari sendiri.'
+    Normal: 'Tindakan: pastikan komunikasi ini memang diharapkan dan alamat pengirim sesuai. Jangan kirim data sensitif melalui permintaan yang tidak kamu kenali.',
+    Spam: 'Tindakan: abaikan promosi yang tidak diinginkan atau gunakan mekanisme berhenti berlangganan yang tepercaya. Jika pesan membahas akun/pembayaran, periksa melalui aplikasi atau situs resmi yang dibuka sendiri.',
+    Phishing: 'Tindakan: jangan klik tautan, membalas, mengirim kode, atau melakukan pembayaran. Hubungi organisasi melalui kanal resmi yang dicari secara mandiri.'
   };
   document.querySelector('#teks-tindakan').textContent = tindakan[hasil.label] || 'Periksa pengirim dan konteks email.';
   renderSkor(hasil.probabilitas || {});
@@ -159,126 +163,20 @@ function tampilkanHasil(hasil, teksEmail) {
   wadahTautan.hidden = !tautan.length;
   tautan.forEach((item) => {
     const kartuTautan = buatElemen('article', 'link-card');
-    kartuTautan.append(buatElemen('strong', '', item.domain || 'Domain tidak diketahui'));
-    if (item.teks_tampil) kartuTautan.append(buatElemen('span', 'link-display-text', `Teks tombol: ${item.teks_tampil}`));
-    const alamat = buatElemen('code', 'defanged-link', amankanTautan(item.url));
-    kartuTautan.append(alamat);
-    kartuTautan.append(buatElemen('small', '', item.indikator?.length ? item.indikator.join(' · ') : 'Tautan ditemukan di email. Redirect belum diperiksa.'));
-    const tombolRedirect = buatElemen('button', 'redirect-button', 'Lacak redirect (hubungi situs)');
-    tombolRedirect.type = 'button';
-    kartuTautan.append(tombolRedirect);
-    const petaRedirect = buatElemen('section', 'redirect-map-panel');
-    petaRedirect.setAttribute('aria-label', 'Peta visual arah tautan');
-    const kepalaPeta = buatElemen('div', 'redirect-map-heading');
-    kepalaPeta.append(buatElemen('strong', '', 'PETA ARAH TAUTAN'));
-    const statusPeta = buatElemen('span', 'redirect-map-status', 'Belum diperiksa');
-    kepalaPeta.append(statusPeta);
-    petaRedirect.append(kepalaPeta);
-    const jalurPeta = buatElemen('div', 'redirect-flow');
-    const nodeAwal = buatElemen('article', 'redirect-node redirect-node-source');
-    nodeAwal.append(buatElemen('span', 'redirect-node-icon', '✉'));
-    nodeAwal.append(buatElemen('small', '', 'TAUTAN DARI EMAIL'));
-    nodeAwal.append(buatElemen('code', '', amankanTautan(item.url)));
-    const statusNodeAwal = buatElemen('span', 'redirect-node-state', 'Menunggu pemeriksaan');
-    nodeAwal.append(statusNodeAwal);
-    jalurPeta.append(nodeAwal);
-    const panahAwal = buatElemen('span', 'redirect-flow-arrow redirect-flow-pending', '⇢');
-    panahAwal.setAttribute('aria-hidden', 'true');
-    jalurPeta.append(panahAwal);
-    const nodeTujuan = buatElemen('article', 'redirect-node redirect-node-pending');
-    nodeTujuan.append(buatElemen('span', 'redirect-node-icon', '◎'));
-    nodeTujuan.append(buatElemen('small', '', 'TUJUAN BERIKUTNYA'));
-    nodeTujuan.append(buatElemen('code', '', 'Menunggu pemeriksaan'));
-    nodeTujuan.append(buatElemen('span', 'redirect-node-state', 'Belum diketahui'));
-    jalurPeta.append(nodeTujuan);
-    petaRedirect.append(jalurPeta);
-    const catatanPeta = buatElemen('small', 'redirect-map-note', 'Tujuan akhir belum dikonfirmasi.');
-    petaRedirect.append(catatanPeta);
-    kartuTautan.append(petaRedirect);
-    tombolRedirect.addEventListener('click', async () => {
-      tombolRedirect.disabled = true;
-      tombolRedirect.textContent = 'Memeriksa header redirect…';
-      statusPeta.textContent = 'Menghubungi situs…';
-      statusPeta.className = 'redirect-map-status is-loading';
-      statusNodeAwal.textContent = 'Permintaan dikirim';
-      nodeTujuan.className = 'redirect-node redirect-node-pending';
-      nodeTujuan.querySelector('code').textContent = 'Menunggu respons';
-      nodeTujuan.querySelector('.redirect-node-state').textContent = 'Sedang memeriksa';
-      catatanPeta.textContent = 'Menghubungi domain tautan; isi halaman tidak dibaca.';
-      panahAwal.className = 'redirect-flow-arrow redirect-flow-loading';
-      try {
-        const data = await panggilApi('/api/check-redirect', { method: 'POST', body: JSON.stringify({ url: item.url }) });
-        const rantai = data.hasil?.rantai || [];
-        const statusAkhir = data.hasil?.status || '';
-        const urlAkhir = data.hasil?.url_akhir || item.url;
-        statusPeta.textContent = data.hasil?.terblokir ? 'Diblokir' : statusAkhir.includes('Batas waktu') ? 'Belum terkonfirmasi' : 'Pemeriksaan selesai';
-        statusPeta.className = `redirect-map-status ${data.hasil?.terblokir ? 'is-blocked' : statusAkhir.includes('Batas waktu') ? 'is-unknown' : 'is-done'}`;
-        jalurPeta.replaceChildren();
-        const nodeSumber = buatElemen('article', 'redirect-node redirect-node-source');
-        nodeSumber.append(buatElemen('span', 'redirect-node-icon', '✉'));
-        nodeSumber.append(buatElemen('small', '', 'TAUTAN DARI EMAIL'));
-        nodeSumber.append(buatElemen('code', '', amankanTautan(item.url)));
-        const hopPertama = rantai[0];
-        const statusSumber = hopPertama?.kode_http && hopPertama.url === item.url
-          ? `${hopPertama.metode || 'HEAD'} · HTTP ${hopPertama.kode_http}${statusAkhir.includes('tidak ada redirect') ? ' · tujuan merespons' : ''}`
-          : hopPertama?.kode_http ? `${hopPertama.metode || 'HEAD'} · HTTP ${hopPertama.kode_http}` : 'Tidak ada respons';
-        nodeSumber.append(buatElemen('span', 'redirect-node-state', statusSumber));
-        if (hopPertama?.kode_http && statusAkhir.includes('tidak ada redirect') && hopPertama.url === item.url) nodeSumber.classList.add('redirect-node-final');
-        jalurPeta.append(nodeSumber);
-        let urlTerakhirDiPeta = item.url;
-        rantai.forEach((lompatan, nomor) => {
-          if (lompatan.url === item.url && nomor === 0) return;
-          const panah = buatElemen('span', 'redirect-flow-arrow', '→');
-          panah.setAttribute('aria-hidden', 'true');
-          jalurPeta.append(panah);
-          const node = buatElemen('article', `redirect-node ${lompatan.kode_http ? 'redirect-node-hop' : 'redirect-node-blocked'}`);
-          node.append(buatElemen('span', 'redirect-node-icon', lompatan.kode_http ? '↪' : '⛨'));
-          const tujuanTerakhirMerespons = nomor === rantai.length - 1 && statusAkhir.includes('tidak ada redirect');
-          node.append(buatElemen('small', '', lompatan.kode_http ? tujuanTerakhirMerespons ? 'TUJUAN AKHIR' : `LOMPATAN ${nomor + 1}` : 'TUJUAN DIBLOKIR'));
-          node.append(buatElemen('code', '', amankanTautan(lompatan.url)));
-          node.append(buatElemen('span', 'redirect-node-state', lompatan.kode_http ? `${lompatan.metode || 'HEAD'} · HTTP ${lompatan.kode_http}${tujuanTerakhirMerespons ? ' · merespons' : ''}` : 'Tidak dihubungi'));
-          if (tujuanTerakhirMerespons) node.classList.add('redirect-node-final');
-          jalurPeta.append(node);
-          urlTerakhirDiPeta = lompatan.url;
-        });
-        const belumDikonfirmasi = statusAkhir.includes('Batas waktu') || statusAkhir.includes('Batas') || !rantai.length || data.hasil?.terblokir;
-        if (urlAkhir && urlAkhir !== urlTerakhirDiPeta) {
-          const panah = buatElemen('span', `redirect-flow-arrow ${belumDikonfirmasi ? 'redirect-flow-pending' : ''}`, '⇢');
-          panah.setAttribute('aria-hidden', 'true');
-          jalurPeta.append(panah);
-          const nodeAkhir = buatElemen('article', `redirect-node ${data.hasil?.terblokir ? 'redirect-node-blocked' : belumDikonfirmasi ? 'redirect-node-pending' : 'redirect-node-final'}`);
-          nodeAkhir.append(buatElemen('span', 'redirect-node-icon', data.hasil?.terblokir ? '⛨' : belumDikonfirmasi ? '…' : '◎'));
-          nodeAkhir.append(buatElemen('small', '', data.hasil?.terblokir ? 'DIBLOKIR' : belumDikonfirmasi ? 'BELUM TERVERIFIKASI' : 'TUJUAN AKHIR'));
-          nodeAkhir.append(buatElemen('code', '', amankanTautan(urlAkhir)));
-          nodeAkhir.append(buatElemen('span', 'redirect-node-state', data.hasil?.terblokir ? 'Tidak dihubungi' : belumDikonfirmasi ? 'Belum ada respons' : 'Terkonfirmasi merespons'));
-          jalurPeta.append(nodeAkhir);
-        }
-        if (!rantai.length && urlAkhir === item.url) {
-          nodeSumber.classList.add('redirect-node-unknown');
-          nodeSumber.querySelector('.redirect-node-state').textContent = 'Belum ada server yang merespons';
-          const panahPenantian = buatElemen('span', 'redirect-flow-arrow redirect-flow-pending', '⇢');
-          panahPenantian.setAttribute('aria-hidden', 'true');
-          jalurPeta.append(panahPenantian);
-          const tujuanTertunda = buatElemen('article', 'redirect-node redirect-node-pending');
-          tujuanTertunda.append(buatElemen('span', 'redirect-node-icon', '…'));
-          tujuanTertunda.append(buatElemen('small', '', 'TUJUAN BERIKUTNYA'));
-          tujuanTertunda.append(buatElemen('code', '', 'Belum diketahui'));
-          tujuanTertunda.append(buatElemen('span', 'redirect-node-state', statusAkhir || 'Tidak ada respons'));
-          jalurPeta.append(tujuanTertunda);
-        }
-        catatanPeta.textContent = `${statusAkhir || 'Status tidak diketahui'} · ${data.catatan || 'Peta ini menunjukkan respons jaringan, bukan reputasi atau keamanan situs.'}`;
-      } catch (kesalahan) {
-        statusPeta.textContent = 'Pemeriksaan gagal';
-        statusPeta.className = 'redirect-map-status is-unknown';
-        statusNodeAwal.textContent = 'Alamat awal saja yang diketahui';
-        nodeTujuan.querySelector('code').textContent = 'Tujuan belum diketahui';
-        nodeTujuan.querySelector('.redirect-node-state').textContent = kesalahan.message;
-        catatanPeta.textContent = 'Tidak ada tujuan redirect yang berhasil dikonfirmasi.';
-      } finally {
-        tombolRedirect.disabled = false;
-        tombolRedirect.textContent = 'Periksa lagi';
-      }
-    });
+    kartuTautan.append(buatElemen('strong', '', `Domain terdeteksi: ${item.domain || 'tidak diketahui'}`));
+    if (item.teks_tampil) kartuTautan.append(buatElemen('span', 'link-display-text', `Label tautan pada pesan: ${item.teks_tampil}`));
+    const temuanTautan = item.indikator || [];
+    const risikoTautan = temuanTautan.some((temuan) => /alamat IP|punycode|berbeda|pengalih/i.test(temuan))
+      ? 'tinggi'
+      : temuanTautan.length ? 'sedang' : 'rendah';
+    const ringkasanTautan = buatElemen('div', `link-assessment link-assessment-${risikoTautan}`);
+    ringkasanTautan.append(
+      buatElemen('strong', '', temuanTautan.length ? 'Perlu ditinjau' : 'Tidak ada pola URL umum terdeteksi'),
+      buatElemen('small', '', temuanTautan.length
+        ? temuanTautan.join(' · ')
+        : 'Analisis struktur URL tidak menemukan pola umum yang mencurigakan. Reputasi situs tidak diperiksa; hasil ini bukan jaminan keamanan.')
+    );
+    kartuTautan.append(ringkasanTautan);
     daftarTautan.append(kartuTautan);
   });
   document.querySelector('#pratinjau-email').textContent = amankanTautan(teksEmail);
@@ -357,7 +255,7 @@ function mulaiPemindai() {
       }
       tampilkanHasil(data.hasil, data.teks_diperiksa || '');
       statusBerkas.textContent = `${berkas.name} berhasil dianalisis${data.metadata?.subjek ? ` · Subjek: ${data.metadata.subjek}` : ''}`;
-      tampilkanStatus('Pemeriksaan lokal selesai. Tujuan redirect dapat diperiksa satu per satu; hasil bukan kepastian.', 'sukses');
+      tampilkanStatus('Analisis lokal selesai. Tautan tidak dibuka; diagnosis URL hanya berdasarkan pola yang terlihat.', 'sukses');
       await perbaruiStatistik();
     } catch (kesalahan) {
       statusBerkas.textContent = 'Berkas belum berhasil diperiksa.';
