@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#10120f">
+  <meta name="description" content="Periksa teks email dengan klasifikasi lokal dan indikator ancaman yang bisa dijelaskan.">
+  <title>Scan email — Check Mail</title>
+  <link rel="stylesheet" href="/style.css">
+  <script src="/vendor/lottie.min.js" defer></script>
+  <script src="/script.js" defer></script>
+</head>
+<body data-halaman="scan">
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="Check Mail, halaman scan"><span class="brand-mark" aria-hidden="true">CM</span><span>Check Mail</span></a>
+      <nav class="main-nav" aria-label="Navigasi utama">
+        <a class="nav-link aktif" href="/" aria-current="page">Scan</a>
+        <a class="nav-link" href="/riwayat.html">Riwayat</a>
+        <a class="nav-link" href="/panduan.html">Panduan</a>
+      </nav>
+      <div class="top-actions"><span class="local-badge"><i></i> Lokal</span><button class="theme-button" type="button" data-theme-toggle aria-label="Aktifkan mode terang" aria-pressed="false"><span class="theme-icon" aria-hidden="true">☼</span><span class="theme-text">Mode terang</span></button></div>
+    </header>
+
+    <main class="dashboard-grid">
+      <section class="scan-column" aria-labelledby="judul-scan">
+        <div class="page-heading"><p class="eyebrow">PEMERIKSA EMAIL LOKAL</p><h1 id="judul-scan">Ada email yang terasa janggal?</h1><p>Tempel isi pesannya. Kami tunjukkan pola yang perlu kamu cek sebelum bertindak.</p></div>
+        <section class="panel input-panel" aria-label="Input email">
+          <div class="panel-heading"><div><p class="section-kicker">01 / ISI PESAN</p><h2>Tempel email di sini</h2></div><span class="format-chip">TEKS SAJA</span></div>
+          <label class="visually-hidden" for="teks-email">Isi email yang akan diperiksa</label>
+          <textarea id="teks-email" maxlength="20000" placeholder="Tempel subjek dan isi email di sini…&#10;&#10;Jangan klik tautan atau membuka lampiran dari pesan yang mencurigakan."></textarea>
+          <div class="file-import">
+            <label class="file-label" id="area-lepas-berkas" for="berkas-email"><span aria-hidden="true">↥</span><span><strong>Seret dan lepaskan email di sini</strong><small>Atau pilih .eml / .txt / .pdf · maksimal 10 MB · diproses lokal</small></span><span class="file-choose">Pilih berkas</span></label>
+            <input id="berkas-email" type="file" accept=".eml,.txt,.pdf,message/rfc822,text/plain,application/pdf" class="visually-hidden">
+            <p id="status-berkas" class="file-status" aria-live="polite">Gmail: buka email → menu ⋮ → Download message (.eml). PDF harus memiliki teks yang dapat dipilih; PDF hasil scan gambar belum mendukung OCR.</p>
+          </div>
+          <details class="sender-details">
+            <summary>Tambahkan alamat pengirim (opsional)</summary>
+            <div class="sender-grid">
+              <label for="alamat-pengirim">Dari / From<input id="alamat-pengirim" type="text" maxlength="320" autocomplete="off" placeholder="contoh@domain.com"></label>
+              <label for="alamat-balasan">Balas-ke / Reply-To<input id="alamat-balasan" type="text" maxlength="320" autocomplete="off" placeholder="balasan@domain.com"></label>
+            </div>
+            <small>Alamat ini hanya dibandingkan selama pemeriksaan dan tidak disimpan di riwayat.</small>
+          </details>
+          <div class="input-footer"><span id="penghitung">0 / 20.000</span><span>Diproses lokal di komputer ini</span></div>
+          <div class="actions"><button class="scan-button" id="tombol-analisis" type="button"><span class="scan-button-label">Periksa email</span><span aria-hidden="true">↗</span></button><button class="clear-button" id="tombol-bersihkan" type="button">Bersihkan</button></div>
+          <div class="scan-progress" id="scan-progress" role="status" aria-live="polite" hidden><span class="loading-orbit" aria-hidden="true"><i></i><i></i><i></i></span><span><strong>Sedang memeriksa teks…</strong><small>Menjalankan model dan membaca indikator lokal.</small></span></div>
+          <p class="status-message" id="status" role="status" aria-live="polite"></p>
+        </section>
+
+        <section class="result-panel panel" id="panel-hasil" aria-live="polite" hidden>
+          <div class="panel-heading"><div><p class="section-kicker">02 / HASIL PEMERIKSAAN</p><h2>Temuan untuk email ini</h2></div><span class="result-stamp">SELESAI</span></div>
+          <div class="result-grid">
+            <div class="verdict-card" id="kartu-vonis"><div class="verdict-icon" id="ikon-vonis" aria-hidden="true">✓</div><p class="section-kicker">KLASIFIKASI GABUNGAN</p><h3 id="label-hasil">—</h3><p id="teks-vonis"></p><p class="classification-note" id="catatan-klasifikasi" hidden></p></div>
+            <div class="score-card"><p class="section-kicker">DASAR KEPUTUSAN</p><p class="fine-print" id="catatan-skor">Skor model adalah estimasi, bukan jaminan email aman atau berbahaya.</p><details class="model-score-details" id="detail-skor-ml"><summary>Lihat rincian skor ML mentah</summary><div id="daftar-skor"></div><p class="fine-print">Skor mentah menunjukkan keluaran model teks sebelum aturan risiko. Ini bukan probabilitas keamanan yang terkalibrasi.</p></details></div>
+          </div>
+          <div class="indicators-wrap"><div class="subheading"><h3>Indikator yang ditemukan</h3><span id="jumlah-indikator">0 indikator</span></div><div id="daftar-indikator" class="indicator-list"></div></div>
+          <div class="indicators-wrap" id="tautan-wrap" hidden><div class="subheading"><h3>Tautan dalam email</h3><span>PERIKSA PER TAUTAN</span></div><div id="daftar-tautan" class="link-list"></div><p class="fine-print">Pemeriksaan redirect bersifat opsional dan menghubungi situs dari komputer ini memakai HEAD, atau GET Range terbatas bila HEAD ditolak; situs dapat mencatat alamat IP. Check Mail tidak membaca isi halaman. Redirect ke alamat lokal/private diblokir. Batas waktu pemeriksaan 30 detik.</p></div>
+          <div class="email-preview"><div class="subheading"><h3>Teks yang diperiksa</h3><span>TAUTAN DINONAKTIFKAN</span></div><pre id="pratinjau-email"></pre></div>
+          <div class="next-step" id="saran-tindakan"><strong>Langkah aman</strong><span id="teks-tindakan"></span></div>
+        </section>
+      </section>
+
+      <aside class="side-column" aria-label="Ringkasan dan ilustrasi">
+        <section class="illustration-card panel">
+          <div class="illustration-heading"><div><p class="section-kicker">CHECK MAIL / VISUAL</p><h2>Penjaga inbox</h2></div><span class="live-dot" aria-label="Siap"></span></div>
+          <div class="illustration-stage" id="slot-ilustrasi">
+            <div id="lottie-sinyal" class="lottie-sinyal" aria-hidden="true"></div>
+            <svg id="ilustrasi-pengganti" class="mascot" viewBox="0 0 220 220" role="img" aria-label="Ilustrasi sementara penjaga email">
+              <path class="mascot-cape" d="M63 126 42 178l39-10 28 20 30-20 40 9-22-54z"/><rect class="mascot-body" x="56" y="61" width="108" height="112" rx="32"/><path class="mascot-ear" d="M54 93H39v38h17m108-38h15v38h-17"/><rect class="mascot-face" x="68" y="77" width="84" height="57" rx="19"/><g class="mascot-eyes"><ellipse cx="92" cy="105" rx="6" ry="9"/><ellipse cx="128" cy="105" rx="6" ry="9"/></g><path class="mascot-smile" d="M96 121q14 10 28 0"/><path class="mascot-antenna" d="M110 61V45"/><circle class="mascot-dot" cx="110" cy="37" r="8"/><path class="mascot-shield" d="m110 145 16 6v13c0 12-8 20-16 24-8-4-16-12-16-24v-13z"/><path class="mascot-check" d="m103 164 5 5 10-11"/>
+            </svg>
+            <div id="lottie-maskot" class="lottie-maskot" aria-hidden="true"></div>
+            <span class="keycap keycap-mail" aria-hidden="true">✉</span><span class="keycap keycap-safe" aria-hidden="true">✓</span><span class="keycap keycap-alert" aria-hidden="true">!</span>
+          </div>
+          <div class="illustration-foot"><span>ILUSTRASI LOKAL</span><span>Slot siap diganti dengan Lottie pilihanmu</span></div>
+        </section>
+
+        <section class="stats-panel panel" aria-labelledby="judul-statistik">
+          <div class="panel-heading"><div><p class="section-kicker">RINGKASAN LOKAL</p><h2 id="judul-statistik">Aktivitas scan</h2></div><a class="subtle-link" href="/riwayat.html">Lihat semua ↗</a></div>
+          <div class="total-stat"><strong id="stat-total">—</strong><span>email diperiksa</span></div>
+          <div class="stat-bars" id="stat-bars">
+            <div class="stat-row"><span>Normal</span><div class="bar-track"><i class="bar-normal" id="bar-normal"></i></div><b id="stat-normal">0</b></div>
+            <div class="stat-row"><span>Spam</span><div class="bar-track"><i class="bar-spam" id="bar-spam"></i></div><b id="stat-spam">0</b></div>
+            <div class="stat-row"><span>Phishing</span><div class="bar-track"><i class="bar-phishing" id="bar-phishing"></i></div><b id="stat-phishing">0</b></div>
+          </div>
+        </section>
+        <section class="privacy-note"><span aria-hidden="true">◈</span><p><strong>Data tetap lokal.</strong><br>Riwayat menyimpan cuplikan singkat. Isi email tidak dikirim ke layanan luar.</p></section>
+      </aside>
+    </main>
+    <footer><span>CHECK MAIL <b>·</b> PEMERIKSA EMAIL LOKAL</span><span>Periksa dulu. Putuskan dengan tenang.</span></footer>
+  </div>
+</body>
+</html>
+
+
+
+

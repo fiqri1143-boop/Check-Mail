@@ -1,0 +1,132 @@
+{
+  "dibuat_pada_utc": "2026-11-19T13:22:10.823597+00:00",
+  "nama_dataset": "dataset/emails.csv",
+  "sha256_dataset": "971853714fbe2018f8c8a257e0f7ababbea5a139b0b067aed56dee97ea476ff2",
+  "jumlah_data": 28683,
+  "jumlah_per_kelas": {
+    "Normal": 15889,
+    "Phishing": 11417,
+    "Spam": 1377
+  },
+  "jumlah_per_sumber": {
+    "meajor_trec7": 7920,
+    "meajor_trec5": 7705,
+    "meajor_trec6": 7496,
+    "dataset_pengguna": 5532,
+    "sintetis_gpt": 30
+  },
+  "kelas_model": [
+    "Normal",
+    "Phishing",
+    "Spam"
+  ],
+  "vectorizer": {
+    "n_jobs": null,
+    "transformer_list": [
+      [
+        "kata",
+        "TfidfVectorizer(max_features=180000, min_df=2, ngram_range=(1, 2),\n                preprocessor=<function hapus_kata_umum at 0x000002149F9E1E80>,\n                strip_accents='unicode', sublinear_tf=True)"
+      ],
+      [
+        "karakter",
+        "TfidfVectorizer(analyzer='char_wb', max_features=80000, min_df=2,\n                ngram_range=(3, 5), sublinear_tf=True)"
+      ],
+      [
+        "struktur",
+        "Pipeline(steps=[('ekstraksi',\n                 FunctionTransformer(func=<function ekstrak_fitur_struktural at 0x000002149F9E1F30>)),\n                ('vektor', DictVectorizer())])"
+      ]
+    ],
+    "transformer_weights": null,
+    "verbose": false,
+    "verbose_feature_names_out": true,
+    "kata": "TfidfVectorizer(max_features=180000, min_df=2, ngram_range=(1, 2),\n                preprocessor=<function hapus_kata_umum at 0x000002149F9E1E80>,\n                strip_accents='unicode', sublinear_tf=True)",
+    "karakter": "TfidfVectorizer(analyzer='char_wb', max_features=80000, min_df=2,\n                ngram_range=(3, 5), sublinear_tf=True)",
+    "struktur": "Pipeline(steps=[('ekstraksi',\n                 FunctionTransformer(func=<function ekstrak_fitur_struktural at 0x000002149F9E1F30>)),\n                ('vektor', DictVectorizer())])",
+    "kata__analyzer": "word",
+    "kata__binary": false,
+    "kata__decode_error": "strict",
+    "kata__dtype": "<class 'numpy.float64'>",
+    "kata__encoding": "utf-8",
+    "kata__input": "content",
+    "kata__lowercase": true,
+    "kata__max_df": 1.0,
+    "kata__max_features": 180000,
+    "kata__min_df": 2,
+    "kata__ngram_range": [
+      1,
+      2
+    ],
+    "kata__norm": "l2",
+    "kata__preprocessor": "<function hapus_kata_umum at 0x000002149F9E1E80>",
+    "kata__smooth_idf": true,
+    "kata__stop_words": null,
+    "kata__strip_accents": "unicode",
+    "kata__sublinear_tf": true,
+    "kata__token_pattern": "(?u)\\b\\w\\w+\\b",
+    "kata__tokenizer": null,
+    "kata__use_idf": true,
+    "kata__vocabulary": null,
+    "karakter__analyzer": "char_wb",
+    "karakter__binary": false,
+    "karakter__decode_error": "strict",
+    "karakter__dtype": "<class 'numpy.float64'>",
+    "karakter__encoding": "utf-8",
+    "karakter__input": "content",
+    "karakter__lowercase": true,
+    "karakter__max_df": 1.0,
+    "karakter__max_features": 80000,
+    "karakter__min_df": 2,
+    "karakter__ngram_range": [
+      3,
+      5
+    ],
+    "karakter__norm": "l2",
+    "karakter__preprocessor": null,
+    "karakter__smooth_idf": true,
+    "karakter__stop_words": null,
+    "karakter__strip_accents": null,
+    "karakter__sublinear_tf": true,
+    "karakter__token_pattern": "(?u)\\b\\w\\w+\\b",
+    "karakter__tokenizer": null,
+    "karakter__use_idf": true,
+    "karakter__vocabulary": null,
+    "struktur__memory": null,
+    "struktur__steps": [
+      [
+        "ekstraksi",
+        "FunctionTransformer(func=<function ekstrak_fitur_struktural at 0x000002149F9E1F30>)"
+      ],
+      [
+        "vektor",
+        "DictVectorizer()"
+      ]
+    ],
+    "struktur__transform_input": null,
+    "struktur__verbose": false,
+    "struktur__ekstraksi": "FunctionTransformer(func=<function ekstrak_fitur_struktural at 0x000002149F9E1F30>)",
+    "struktur__vektor": "DictVectorizer()",
+    "struktur__ekstraksi__accept_sparse": false,
+    "struktur__ekstraksi__check_inverse": true,
+    "struktur__ekstraksi__feature_names_out": null,
+    "struktur__ekstraksi__func": "<function ekstrak_fitur_struktural at 0x000002149F9E1F30>",
+    "struktur__ekstraksi__inv_kw_args": null,
+    "struktur__ekstraksi__inverse_func": null,
+    "struktur__ekstraksi__kw_args": null,
+    "struktur__ekstraksi__validate": false,
+    "struktur__vektor__dtype": "<class 'numpy.float64'>",
+    "struktur__vektor__separator": "=",
+    "struktur__vektor__sort": true,
+    "struktur__vektor__sparse": true
+  },
+  "fitur_teks": "FeatureUnion: TF-IDF kata (1-2 gram) + karakter char_wb (3-5 gram) + fitur struktural email",
+  "classifier": {
+    "alpha": 0.5,
+    "class_prior": null,
+    "fit_prior": true,
+    "force_alpha": true
+  },
+  "pembobotan_kelas": "balanced sample_weight",
+  "seed_evaluasi": 42,
+  "python": "3.14.0",
+  "scikit_learn": "1.9.1"
+}

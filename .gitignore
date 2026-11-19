@@ -1,0 +1,15 @@
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.env
+*.log
+backend/model.pkl
+backend/vectorizer.pkl
+database/*.db
+database/*.sqlite*
+dataset/meajor_cleaned_preprocessed.csv
+dataset/*.part
+dataset/emails.csv
+dataset/emails-source.zip
+dataset/dataset_email.zip

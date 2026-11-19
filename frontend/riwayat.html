@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#10120f">
+  <meta name="description" content="Riwayat pemeriksaan email lokal Check Mail.">
+  <title>Riwayat scan — Check Mail</title><link rel="stylesheet" href="/style.css"><script src="/vendor/lottie.min.js" defer></script><script src="/script.js" defer></script>
+</head>
+<body data-halaman="riwayat">
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="Check Mail, halaman scan"><span class="brand-mark" aria-hidden="true">CM</span><span>Check Mail</span></a>
+      <nav class="main-nav" aria-label="Navigasi utama"><a class="nav-link" href="/">Scan</a><a class="nav-link aktif" href="/riwayat.html" aria-current="page">Riwayat</a><a class="nav-link" href="/panduan.html">Panduan</a></nav>
+      <div class="top-actions"><span class="local-badge"><i></i> Lokal</span><button class="theme-button" type="button" data-theme-toggle aria-label="Aktifkan mode terang" aria-pressed="false"><span class="theme-icon" aria-hidden="true">☼</span><span class="theme-text">Mode terang</span></button></div>
+    </header>
+    <main class="page-main">
+      <div class="page-heading"><p class="eyebrow">CATATAN DI PERANGKAT INI</p><h1>Riwayat pemeriksaan</h1><p>Lihat hasil sebelumnya, saring menurut kategori, atau ekspor ringkasannya.</p></div>
+      <section class="history-stats" aria-label="Statistik riwayat">
+        <article class="stat-tile stat-tile-total"><span>Total scan</span><strong id="stat-history-total">—</strong></article>
+        <article class="stat-tile stat-tile-normal"><span>Normal</span><strong id="stat-history-normal">—</strong></article>
+        <article class="stat-tile stat-tile-spam"><span>Spam</span><strong id="stat-history-spam">—</strong></article>
+        <article class="stat-tile stat-tile-phishing"><span>Phishing</span><strong id="stat-history-phishing">—</strong></article>
+      </section>
+      <section class="panel history-page-panel">
+        <div class="history-toolbar"><div class="filter-group" role="group" aria-label="Saring riwayat"><button class="filter-button aktif" data-filter="semua" type="button" aria-pressed="true">Semua</button><button class="filter-button" data-filter="Normal" type="button" aria-pressed="false">Normal</button><button class="filter-button" data-filter="Spam" type="button" aria-pressed="false">Spam</button><button class="filter-button" data-filter="Phishing" type="button" aria-pressed="false">Phishing</button></div><div class="toolbar-actions"><button class="secondary-button" id="tombol-ekspor" type="button">Ekspor CSV</button><button class="danger-button" id="tombol-hapus-riwayat" type="button">Hapus riwayat</button></div></div>
+        <div class="table-wrap"><table class="history-table"><caption class="visually-hidden">Daftar email yang pernah diperiksa</caption><thead><tr><th scope="col">Waktu</th><th scope="col">Kategori</th><th scope="col">Cuplikan email</th><th scope="col">Skor tertinggi</th></tr></thead><tbody id="riwayat-body"></tbody></table></div>
+        <p class="history-state" id="status-riwayat" role="status" aria-live="polite">Memuat riwayat…</p>
+      </section>
+      <p class="privacy-inline"><strong>Privasi:</strong> riwayat disimpan di database lokal. Aplikasi menyimpan cuplikan pendek, bukan isi email lengkap.</p>
+    </main>
+    <footer><span>CHECK MAIL <b>·</b> RIWAYAT LOKAL</span><span><a href="/">Kembali ke Scan ↗</a></span></footer>
+  </div>
+</body>
+</html>

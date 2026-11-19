@@ -1,0 +1,210 @@
+{
+  "waktu_utc": "2026-11-18T04:03:46.239525+00:00",
+  "jumlah_data": 28683,
+  "jumlah_per_kelas": {
+    "Normal": 15889,
+    "Phishing": 11417,
+    "Spam": 1377
+  },
+  "seed": 42,
+  "metode": "Holdout berdasarkan sumber untuk MeAJOR; holdout stratifikasi untuk dataset spam pengguna.",
+  "catatan": "Skor pada sumber yang dikenal tidak menjamin generalisasi ke email Indonesia atau kampanye baru. Bobot kelas seimbang mengubah prior efektif; predict_proba bukan probabilitas risiko yang terkalibrasi. Fitur kata+karakter menambah cakupan variasi ejaan tetapi tidak menggantikan data uji baru.",
+  "evaluasi_lintas_sumber": {
+    "meajor_trec5": {
+      "label_diuji": [
+        "Normal",
+        "Phishing"
+      ],
+      "metrik": {
+        "Normal": {
+          "precision": 0.9438860971524288,
+          "recall": 0.9049785867237687,
+          "f1-score": 0.9240229570921017,
+          "support": 3736.0
+        },
+        "Phishing": {
+          "precision": 0.9127633209417596,
+          "recall": 0.9279415469891661,
+          "f1-score": 0.9202898550724637,
+          "support": 3969.0
+        },
+        "micro avg": {
+          "precision": 0.9273992385453591,
+          "recall": 0.9168072680077871,
+          "f1-score": 0.9220728364443285,
+          "support": 7705.0
+        },
+        "macro avg": {
+          "precision": 0.9283247090470942,
+          "recall": 0.9164600668564674,
+          "f1-score": 0.9221564060822827,
+          "support": 7705.0
+        },
+        "weighted avg": {
+          "precision": 0.9278541310550705,
+          "recall": 0.9168072680077871,
+          "f1-score": 0.9220999613859443,
+          "support": 7705.0
+        }
+      },
+      "confusion_matrix": [
+        [
+          3381,
+          352
+        ],
+        [
+          201,
+          3683
+        ]
+      ],
+      "jumlah_uji": 7705
+    },
+    "meajor_trec6": {
+      "label_diuji": [
+        "Normal",
+        "Phishing"
+      ],
+      "metrik": {
+        "Normal": {
+          "precision": 0.9453280318091452,
+          "recall": 0.9529058116232465,
+          "f1-score": 0.9491017964071856,
+          "support": 3992.0
+        },
+        "Phishing": {
+          "precision": 0.9463556851311954,
+          "recall": 0.9263698630136986,
+          "f1-score": 0.9362561292183443,
+          "support": 3504.0
+        },
+        "micro avg": {
+          "precision": 0.9458009122618728,
+          "recall": 0.9405016008537886,
+          "f1-score": 0.9431438127090301,
+          "support": 7496.0
+        },
+        "macro avg": {
+          "precision": 0.9458418584701702,
+          "recall": 0.9396378373184726,
+          "f1-score": 0.942678962812765,
+          "support": 7496.0
+        },
+        "weighted avg": {
+          "precision": 0.9458084076416511,
+          "recall": 0.9405016008537886,
+          "f1-score": 0.9430970981908436,
+          "support": 7496.0
+        }
+      },
+      "confusion_matrix": [
+        [
+          3804,
+          184
+        ],
+        [
+          220,
+          3246
+        ]
+      ],
+      "jumlah_uji": 7496
+    },
+    "meajor_trec7": {
+      "label_diuji": [
+        "Normal",
+        "Phishing"
+      ],
+      "metrik": {
+        "Normal": {
+          "precision": 0.8444812101158119,
+          "recall": 0.8963873557451079,
+          "f1-score": 0.8696604600219058,
+          "support": 3986.0
+        },
+        "Phishing": {
+          "precision": 0.8874009292156327,
+          "recall": 0.8253685815963396,
+          "f1-score": 0.8552614249967075,
+          "support": 3934.0
+        },
+        "micro avg": {
+          "precision": 0.8643852978453739,
+          "recall": 0.8611111111111112,
+          "f1-score": 0.8627450980392157,
+          "support": 7920.0
+        },
+        "macro avg": {
+          "precision": 0.8659410696657224,
+          "recall": 0.8608779686707237,
+          "f1-score": 0.8624609425093066,
+          "support": 7920.0
+        },
+        "weighted avg": {
+          "precision": 0.8658001715979703,
+          "recall": 0.8611111111111112,
+          "f1-score": 0.8625082120687328,
+          "support": 7920.0
+        }
+      },
+      "confusion_matrix": [
+        [
+          3573,
+          412
+        ],
+        [
+          658,
+          3247
+        ]
+      ],
+      "jumlah_uji": 7920
+    }
+  },
+  "holdout_dataset_pengguna": {
+    "label_diuji": [
+      "Normal",
+      "Spam"
+    ],
+    "metrik": {
+      "Normal": {
+        "precision": 1.0,
+        "recall": 0.9735894357743097,
+        "f1-score": 0.98661800486618,
+        "support": 833.0
+      },
+      "Spam": {
+        "precision": 0.9246575342465754,
+        "recall": 0.9854014598540146,
+        "f1-score": 0.9540636042402827,
+        "support": 274.0
+      },
+      "micro avg": {
+        "precision": 0.9800543970988214,
+        "recall": 0.976513098464318,
+        "f1-score": 0.9782805429864253,
+        "support": 1107.0
+      },
+      "macro avg": {
+        "precision": 0.9623287671232876,
+        "recall": 0.9794954478141622,
+        "f1-score": 0.9703408045532314,
+        "support": 1107.0
+      },
+      "weighted avg": {
+        "precision": 0.9813515486753042,
+        "recall": 0.976513098464318,
+        "f1-score": 0.9785602760753074,
+        "support": 1107.0
+      }
+    },
+    "confusion_matrix": [
+      [
+        811,
+        22
+      ],
+      [
+        0,
+        270
+      ]
+    ],
+    "jumlah_uji": 1107
+  }
+}
