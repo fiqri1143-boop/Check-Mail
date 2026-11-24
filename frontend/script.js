@@ -138,23 +138,41 @@ function tampilkanHasil(hasil, teksEmail) {
   const labelModel = hasil.label_model || hasil.label;
   const labelDisesuaikan = labelModel !== hasil.label;
   const penyesuaianKonteks = hasil.jenis_penyesuaian === 'konteks_percakapan';
+  const penyesuaianPromosi = hasil.jenis_penyesuaian === 'promosi_komersial';
   document.querySelector('#teks-vonis').textContent = penyesuaianKonteks
     ? 'Konteks isi menyerupai korespondensi personal dengan rencana yang spesifik. Tidak ditemukan tautan, promosi, atau indikator risiko tinggi pada pesan ini. Pastikan identitas pengirim melalui konteks yang kamu kenal.'
     : deskripsi[hasil.label] || hasil.catatan;
   catatanKlasifikasi.hidden = !hasil.alasan_label || !labelDisesuaikan;
-  catatanKlasifikasi.dataset.sumber = penyesuaianKonteks ? 'konteks' : labelDisesuaikan ? 'aturan' : 'model';
+  catatanKlasifikasi.dataset.sumber = penyesuaianKonteks ? 'konteks' : penyesuaianPromosi ? 'promosi' : labelDisesuaikan ? 'aturan' : 'model';
   catatanKlasifikasi.textContent = labelDisesuaikan
     ? penyesuaianKonteks
       ? `Klasifikasi akhir: ${hasil.label}. Model teks mentah: ${labelModel}. Sistem menyesuaikan hasil berdasarkan pola percakapan personal dan rencana spesifik. Ini bukan verifikasi identitas pengirim.`
-      : `Klasifikasi akhir: ${hasil.label}. Model teks mentah: ${labelModel}. ${hasil.alasan_label}`
+      : penyesuaianPromosi
+        ? `Klasifikasi akhir: ${hasil.label}. Model teks mentah: ${labelModel}. Sistem mengenali penawaran komersial dan pola ajakan bertindak; indeks promosi dijelaskan terpisah dan bukan probabilitas.`
+        : `Klasifikasi akhir: ${hasil.label}. Model teks mentah: ${labelModel}. ${hasil.alasan_label}`
     : '';
   const rincianSkor = document.querySelector('#detail-skor-ml');
-  rincianSkor.open = !labelDisesuaikan;
+  rincianSkor.open = false;
   document.querySelector('#catatan-skor').textContent = labelDisesuaikan
     ? penyesuaianKonteks
       ? `Skor di bawah adalah prediksi model mentah (${labelModel}). Klasifikasi akhir disesuaikan ke ${hasil.label} berdasarkan konteks percakapan; buka rincian untuk membandingkan keduanya.`
-      : `Skor di bawah adalah prediksi model mentah (${labelModel}). Aturan risiko mengubah klasifikasi akhir menjadi ${hasil.label}; buka rincian untuk membandingkan keduanya.`
+      : penyesuaianPromosi
+        ? `Skor di bawah adalah prediksi model mentah (${labelModel}). Pola promosi mendukung klasifikasi akhir Spam; indeks sinyal promosi tersedia di bawah.`
+        : `Skor di bawah adalah prediksi model mentah (${labelModel}). Aturan risiko mengubah klasifikasi akhir menjadi ${hasil.label}; buka rincian untuk membandingkan keduanya.`
     : `Keputusan akhir mengikuti prediksi ML: ${hasil.label}. Skor tetap merupakan estimasi, bukan jaminan keamanan.`;
+  const profilSpam = hasil.profil_spam;
+  const diagnosisSpam = document.querySelector('#diagnosis-spam');
+  const tampilkanDiagnosisSpam = hasil.label === 'Spam' && profilSpam && profilSpam.temuan?.length;
+  diagnosisSpam.hidden = !tampilkanDiagnosisSpam;
+  if (tampilkanDiagnosisSpam) {
+    const skorSinyal = Number(profilSpam.skor_sinyal || 0);
+    const skorMaksimum = Number(profilSpam.skor_maksimum || 90);
+    document.querySelector('#jenis-promosi').textContent = profilSpam.kategori || 'Promosi komersial';
+    document.querySelector('#nilai-sinyal-spam').textContent = `${skorSinyal}/${skorMaksimum} · bukti ${profilSpam.kekuatan || 'sedang'}`;
+    document.querySelector('#bar-sinyal-spam').style.width = `${Math.max(0, Math.min(100, skorSinyal / skorMaksimum * 100))}%`;
+    diagnosisSpam.querySelector('[role="meter"]').setAttribute('aria-valuenow', String(Math.min(skorMaksimum, skorSinyal)));
+    document.querySelector('#arah-risiko-spam').textContent = profilSpam.arah_lanjutan || 'Tinjau apakah penawaran memang diharapkan. Sinyal promosi sendiri tidak memastikan phishing.';
+  }
   const tindakan = {
     Normal: 'Tindakan: pastikan komunikasi ini memang diharapkan dan alamat pengirim sesuai. Jangan kirim data sensitif melalui permintaan yang tidak kamu kenali.',
     Spam: 'Tindakan: abaikan promosi yang tidak diinginkan atau gunakan mekanisme berhenti berlangganan yang tepercaya. Jika pesan membahas akun/pembayaran, periksa melalui aplikasi atau situs resmi yang dibuka sendiri.',

@@ -109,6 +109,85 @@ def deteksi_percakapan_personal(teks: str) -> bool:
     ada_rencana = bool(pola_rencana.search(teks_normal))
     return ada_interaksi and (ada_relasi or (ada_rencana and re.search(r"\b(?:saya|aku|kamu|kita|we|i|you)\b", teks_normal)))
 
+
+def analisis_pola_promosi(teks: str, ada_tautan: bool = False) -> dict:
+    """Uraikan pola promosi dan tekanan persuasi; skor ini bukan probabilitas ML."""
+    isi = teks.casefold()
+    kategori = "Promosi komersial umum"
+    pola_sektor = [
+        ("Perjudian dan bonus permainan", r"\b(?:free spin|putaran gratis|bonus deposit|deposit \d+%|slot online|slot gacor|mesin slot|permainan slot|pemain baru|taruhan|betting|casino|kasino)\b"),
+        ("Produk kesehatan dan penurunan berat badan", r"\b(?:turun \d+\s*kg|berat badan|diet ketat|kapsul|suplemen|ekstrak herbal|obat pelangsing|lunturkan lemak)\b"),
+        ("Pinjaman atau kredit cepat", r"\b(?:pinjaman|kredit cepat|dana tunai|langsung cair|tanpa agunan|bi checking|bunga super ringan)\b"),
+        ("Investasi atau penghasilan instan", r"\b(?:robot trading|investasi|kebebasan finansial|penghasilan pasif|hasilkan rp|keuntungan hingga|profit harian)\b"),
+        ("Jasa pemasaran digital atau SEO", r"\b(?:backlink|ranking 1 google|optimasi website|pengunjung website|blast promosi|database email aktif|jasa seo)\b"),
+    ]
+    for nama, pola in pola_sektor:
+        if re.search(pola, isi, re.I):
+            kategori = nama
+            break
+
+    indikator = []
+    pola_promosi = r"\b(?:promo(?:si)?|diskon|voucher|cashback|bonus|penawaran|paket|kami menawarkan|kami menyediakan|dapatkan|bergabunglah|kampanye promosi|khusus pemesanan|free trial|special offer)\b"
+    pola_klaim = (
+        r"\b(?:dijamin|terbukti secara klinis|tanpa efek samping|tanpa modal|tanpa agunan|tanpa survei|"
+        r"langsung cair|langsung meroket|ranking 1|1000%|300% per minggu|200%|turun \d+\s*kg dalam \d+ hari|"
+        r"\d+\s*(?:juta|kg)\b.{0,60}\b(?:setiap hari|per minggu|dalam \d+ (?:hari|menit|jam))|"
+        r"\b(?:hasilkan|hasil|keuntungan|pengunjung|omzet|berat badan)\b.{0,70}\b(?:\d+%|\d+\s*(?:juta|kg)|dalam \d+ (?:hari|minggu|menit)|dijamin|terbukti)\b)"
+    )
+    pola_urgensi = r"\b(?:hari ini|sekarang juga|sekarang|segera|kuota.{0,30}(?:tersisa|terbatas)|\d+ pendaftar tercepat|sebelum kehabisan|khusus.{0,25}hari ini|dalam \d+ (?:menit|jam|hari)|limited time|act now)\b"
+    pola_ajakan = r"\b(?:klik(?: di sini| tautan)?|daftar(?: sekarang)?|pesan(?: sekarang)?|ajukan(?: sekarang)?|klaim(?: bonus)?|amankan slot|lihat daftar paket|beli sekarang|bergabunglah|register now|claim now|apply now)\b"
+    pola_massal = r"\b(?:yth\.? pelanggan|calon jutawan|pemilik website ?/ ?bisnis|ribuan member|member baru|database email aktif|kampanye promosi|dikirim secara otomatis|unsubscribe|berhenti menerima penawaran)\b"
+    pola_data = r"\b(?:isi|mengisi|lengkapi|masukkan|ajukan).{0,45}\b(?:data(?: diri| pribadi| singkat)?|formulir|informasi pribadi|identitas)\b|\b(?:data pribadi|identitas|informasi pribadi)\b.{0,45}\b(?:isi|kirim|masukkan|lengkapi)\b"
+
+    if re.search(pola_promosi, isi, re.I):
+        indikator.append({"kode": "spam_bahasa_promosi", "nama": "Bahasa penawaran komersial", "penjelasan": "Email menawarkan produk, layanan, keuntungan, bonus, atau diskon secara langsung.", "tingkat": "sedang"})
+    klaim_tidak_realistis = bool(re.search(pola_klaim, isi, re.I))
+    if klaim_tidak_realistis:
+        indikator.append({"kode": "spam_klaim_luar_biasa", "nama": "Klaim hasil sangat besar atau sangat cepat", "penjelasan": "Pesan menjanjikan hasil finansial, kesehatan, atau performa yang luar biasa dalam waktu singkat atau memakai kata jaminan. Kebenaran klaim tidak dapat dibuktikan dari isi email.", "tingkat": "sedang"})
+    urgensi = bool(re.search(pola_urgensi, isi, re.I))
+    if urgensi:
+        indikator.append({"kode": "spam_urgensi_kelangkaan", "nama": "Urgensi atau kelangkaan penawaran", "penjelasan": "Batas waktu, kuota, atau ajakan bertindak segera dipakai untuk mendorong keputusan cepat.", "tingkat": "sedang"})
+    ajakan = bool(re.search(pola_ajakan, isi, re.I))
+    if ajakan:
+        indikator.append({"kode": "spam_ajakan_tindakan", "nama": "Ajakan mendaftar, membeli, atau mengklaim", "penjelasan": "Email mengarahkan penerima ke langkah promosi seperti mendaftar, mengajukan, membeli, atau mengklaim bonus.", "tingkat": "rendah"})
+    massal = bool(re.search(pola_massal, isi, re.I))
+    if massal:
+        indikator.append({"kode": "spam_audiens_umum", "nama": "Sapaan atau distribusi massal", "penjelasan": "Bahasa menyasar pelanggan/member secara umum atau menyebut kampanye dan distribusi ke banyak penerima.", "tingkat": "rendah"})
+    if ada_tautan:
+        indikator.append({"kode": "spam_tautan_penawaran", "nama": "Tautan untuk melanjutkan penawaran", "penjelasan": "Pesan menyertakan tautan promosi. Tautan tidak dibuka dan reputasi domain tidak diperiksa.", "tingkat": "sedang"})
+    data_diminta = bool(re.search(pola_data, isi, re.I))
+    if data_diminta:
+        indikator.append({"kode": "spam_pengisian_data", "nama": "Ajakan mengisi data untuk penawaran", "penjelasan": "Promosi meminta pengisian data/formulir. Periksa legalitas penyedia sebelum memberikan informasi; pola ini sendiri belum membuktikan phishing.", "tingkat": "sedang"})
+
+    promosi_eksplisit = bool(re.search(pola_promosi, isi, re.I)) or (ajakan and kategori != "Promosi komersial umum")
+    bobot = (
+        (15, bool(re.search(pola_promosi, isi, re.I))),
+        (20, klaim_tidak_realistis),
+        (10, urgensi),
+        (10, ajakan),
+        (10, massal),
+        (10, ada_tautan),
+        (10, kategori != "Promosi komersial umum"),
+        (5, data_diminta),
+    )
+    skor = sum(nilai for nilai, terdeteksi in bobot if terdeteksi)
+    return {
+        "kategori": kategori,
+        "skor_sinyal": skor,
+        "skor_maksimum": 90,
+        "kekuatan": "kuat" if skor >= 60 else "sedang" if skor >= 40 else "terbatas",
+        "promosi_eksplisit": promosi_eksplisit,
+        "permintaan_data": data_diminta,
+        "temuan": indikator,
+        "arah_lanjutan": (
+            "Perlu kewaspadaan pengumpulan data karena penawaran meminta formulir dan menyertakan tautan. Ini belum cukup untuk memastikan phishing; verifikasi penyedia secara mandiri."
+            if data_diminta and ada_tautan else
+            "Pola yang terlihat adalah promosi agresif. Klaim/penyedia perlu diverifikasi; belum cukup bukti dari isi ini saja untuk memastikan phishing."
+            if kategori != "Promosi komersial umum" and klaim_tidak_realistis else
+            "Ini tampak sebagai promosi komersial. Status tidak diinginkan bergantung pada apakah penerima pernah menyetujuinya; periksa tautan secara independen."
+        ),
+    }
+
 app = Flask(__name__, static_folder=None)
 app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024 + 64 * 1024
 BATAS_BERKAS_EMAIL = 10 * 1024 * 1024
@@ -404,6 +483,13 @@ def jalankan_analisis(teks_email: str, alamat_pengirim: str = "", alamat_balasan
     ada_tautan_email = bool(tautan) or bool(
         re.search(r"(?:https?://|www\.)[^\s<>\]\[(){}\"']+", teks_email, flags=re.I)
     )
+    profil_spam = analisis_pola_promosi(teks_email, ada_tautan_email)
+    kode_temuan = {item["kode"] for item in indikator}
+    for temuan in profil_spam["temuan"]:
+        if temuan["kode"] not in kode_temuan:
+            indikator.append(temuan)
+            kode_temuan.add(temuan["kode"])
+    kode_indikator = {item["kode"] for item in indikator}
     alasan_label = "Kategori mengikuti prediksi model teks."
     jenis_penyesuaian = None
     # Keputusan akhir mengutamakan pola tindakan berisiko yang berpadu:
@@ -422,6 +508,14 @@ def jalankan_analisis(teks_email: str, alamat_pengirim: str = "", alamat_balasan
         label = "Phishing"
         jenis_penyesuaian = "aturan_risiko"
         alasan_label = "Email menggabungkan klaim keamanan/aktivitas akun, desakan atau ancaman akses, dan tautan untuk melakukan verifikasi. Kombinasi ini berisiko phishing; buka aplikasi atau situs resmi secara mandiri, jangan lewat tautan email. Skor ML mentah tetap ditampilkan terpisah."
+    elif label_model != "Phishing" and profil_spam["promosi_eksplisit"] and profil_spam["skor_sinyal"] >= 40:
+        label = "Spam"
+        jenis_penyesuaian = "promosi_komersial"
+        alasan_label = (
+            f"Isi sesuai pola promosi komersial ({profil_spam['kategori'].lower()}) dengan "
+            f"{len(profil_spam['temuan'])} sinyal persuasi/distribusi. Indeks sinyal promosi "
+            f"{profil_spam['skor_sinyal']}/{profil_spam['skor_maksimum']} bukan probabilitas atau bukti phishing."
+        )
     elif label_model == "Spam" and not tautan and not kode_indikator.intersection({
         "mendesak", "rekening_pembayaran_berubah", "tagihan_dan_tekanan", "verifikasi_identitas_akun",
         "ancaman_gangguan_layanan", "minta_kredensial", "permintaan_data_pribadi", "ancaman_akun",
@@ -457,7 +551,7 @@ def jalankan_analisis(teks_email: str, alamat_pengirim: str = "", alamat_balasan
     ]
     return {"label": label, "label_model": label_model, "alasan_label": alasan_label,
             "jenis_penyesuaian": jenis_penyesuaian,
-            "probabilitas": probabilitas, "indikator": indikator,
+            "probabilitas": probabilitas, "indikator": indikator, "profil_spam": profil_spam,
             "tautan": ringkasan_tautan, "catatan": "Skor model adalah estimasi teks, bukan jaminan keamanan."}, id_riwayat
 
 
