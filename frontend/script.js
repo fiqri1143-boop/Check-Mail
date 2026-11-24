@@ -134,19 +134,26 @@ function tampilkanHasil(hasil, teksEmail) {
     Spam: 'Pola isi lebih menyerupai pesan promosi atau pengiriman massal. Kategori Spam tidak dengan sendirinya menunjukkan penipuan atau pemalsuan pengirim.',
     Phishing: 'Ditemukan pola yang konsisten dengan upaya penipuan atau pengambilan informasi sensitif. Jangan membuka tautan, membalas, membayar, atau mengirim data sebelum verifikasi independen.'
   };
-  document.querySelector('#teks-vonis').textContent = deskripsi[hasil.label] || hasil.catatan;
   const catatanKlasifikasi = document.querySelector('#catatan-klasifikasi');
   const labelModel = hasil.label_model || hasil.label;
-  const labelDiubahAturan = labelModel !== hasil.label;
-  catatanKlasifikasi.hidden = !hasil.alasan_label || !labelDiubahAturan;
-  catatanKlasifikasi.dataset.sumber = labelDiubahAturan ? 'aturan' : 'model';
-  catatanKlasifikasi.textContent = labelModel !== hasil.label
-    ? `Keputusan akhir: ${hasil.label}. Prediksi ML mentah: ${labelModel}. ${hasil.alasan_label}`
+  const labelDisesuaikan = labelModel !== hasil.label;
+  const penyesuaianKonteks = hasil.jenis_penyesuaian === 'konteks_percakapan';
+  document.querySelector('#teks-vonis').textContent = penyesuaianKonteks
+    ? 'Konteks isi menyerupai korespondensi personal dengan rencana yang spesifik. Tidak ditemukan tautan, promosi, atau indikator risiko tinggi pada pesan ini. Pastikan identitas pengirim melalui konteks yang kamu kenal.'
+    : deskripsi[hasil.label] || hasil.catatan;
+  catatanKlasifikasi.hidden = !hasil.alasan_label || !labelDisesuaikan;
+  catatanKlasifikasi.dataset.sumber = penyesuaianKonteks ? 'konteks' : labelDisesuaikan ? 'aturan' : 'model';
+  catatanKlasifikasi.textContent = labelDisesuaikan
+    ? penyesuaianKonteks
+      ? `Klasifikasi akhir: ${hasil.label}. Model teks mentah: ${labelModel}. Sistem menyesuaikan hasil berdasarkan pola percakapan personal dan rencana spesifik. Ini bukan verifikasi identitas pengirim.`
+      : `Klasifikasi akhir: ${hasil.label}. Model teks mentah: ${labelModel}. ${hasil.alasan_label}`
     : '';
   const rincianSkor = document.querySelector('#detail-skor-ml');
-  rincianSkor.open = !labelDiubahAturan;
-  document.querySelector('#catatan-skor').textContent = labelDiubahAturan
-    ? `Keputusan akhir: ${hasil.label}. Aturan risiko mengubah prediksi ML mentah (${labelModel}) berdasarkan indikator yang ditemukan. Buka rincian skor ML jika ingin membandingkan keduanya.`
+  rincianSkor.open = !labelDisesuaikan;
+  document.querySelector('#catatan-skor').textContent = labelDisesuaikan
+    ? penyesuaianKonteks
+      ? `Skor di bawah adalah prediksi model mentah (${labelModel}). Klasifikasi akhir disesuaikan ke ${hasil.label} berdasarkan konteks percakapan; buka rincian untuk membandingkan keduanya.`
+      : `Skor di bawah adalah prediksi model mentah (${labelModel}). Aturan risiko mengubah klasifikasi akhir menjadi ${hasil.label}; buka rincian untuk membandingkan keduanya.`
     : `Keputusan akhir mengikuti prediksi ML: ${hasil.label}. Skor tetap merupakan estimasi, bukan jaminan keamanan.`;
   const tindakan = {
     Normal: 'Tindakan: pastikan komunikasi ini memang diharapkan dan alamat pengirim sesuai. Jangan kirim data sensitif melalui permintaan yang tidak kamu kenali.',

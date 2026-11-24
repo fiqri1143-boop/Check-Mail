@@ -405,18 +405,22 @@ def jalankan_analisis(teks_email: str, alamat_pengirim: str = "", alamat_balasan
         re.search(r"(?:https?://|www\.)[^\s<>\]\[(){}\"']+", teks_email, flags=re.I)
     )
     alasan_label = "Kategori mengikuti prediksi model teks."
+    jenis_penyesuaian = None
     # Keputusan akhir mengutamakan pola tindakan berisiko yang berpadu:
     # data sensitif, perubahan rekening, atau akun terancam + verifikasi/link.
     if "permintaan_data_pribadi" in kode_indikator or "minta_kredensial" in kode_indikator:
         label = "Phishing"
+        jenis_penyesuaian = "aturan_risiko"
         alasan_label = "Email meminta data pribadi atau akses akun. Check Mail menaikkan hasil akhir menjadi Phishing berdasarkan aturan risiko, meskipun teks model mentah memilih Spam atau Normal. Jangan kirim data; verifikasi melalui kanal resmi."
     elif "rekening_pembayaran_berubah" in kode_indikator and kode_indikator.intersection({"mendesak", "tagihan_dan_tekanan", "ancaman_gangguan_layanan", "tautan_pengalih", "tautan_tidak_cocok"}):
         label = "Phishing"
+        jenis_penyesuaian = "aturan_risiko"
         alasan_label = "Aturan risiko mendeteksi perubahan tujuan pembayaran yang disertai tekanan atau ancaman gangguan layanan. Prediksi model teks mentah tetap ditampilkan; verifikasi melalui kanal resmi."
     elif ("verifikasi_identitas_akun" in kode_indikator and "ancaman_gangguan_layanan" in kode_indikator and ada_tautan_email) or (
         "login_tidak_biasa" in kode_indikator and "verifikasi_identitas_akun" in kode_indikator and ada_tautan_email
     ):
         label = "Phishing"
+        jenis_penyesuaian = "aturan_risiko"
         alasan_label = "Email menggabungkan klaim keamanan/aktivitas akun, desakan atau ancaman akses, dan tautan untuk melakukan verifikasi. Kombinasi ini berisiko phishing; buka aplikasi atau situs resmi secara mandiri, jangan lewat tautan email. Skor ML mentah tetap ditampilkan terpisah."
     elif label_model == "Spam" and not tautan and not kode_indikator.intersection({
         "mendesak", "rekening_pembayaran_berubah", "tagihan_dan_tekanan", "verifikasi_identitas_akun",
@@ -429,6 +433,7 @@ def jalankan_analisis(teks_email: str, alamat_pengirim: str = "", alamat_balasan
         flags=re.I,
     ) and deteksi_percakapan_personal(teks_email):
         label = "Normal"
+        jenis_penyesuaian = "konteks_percakapan"
         alasan_label = (
             "Model teks mentah memilih Spam, tetapi pesan menunjukkan percakapan personal "
             "dengan interaksi dan rencana yang spesifik. Tidak ditemukan tautan, ajakan promosi, "
@@ -451,6 +456,7 @@ def jalankan_analisis(teks_email: str, alamat_pengirim: str = "", alamat_balasan
         for item in (tautan or [])
     ]
     return {"label": label, "label_model": label_model, "alasan_label": alasan_label,
+            "jenis_penyesuaian": jenis_penyesuaian,
             "probabilitas": probabilitas, "indikator": indikator,
             "tautan": ringkasan_tautan, "catatan": "Skor model adalah estimasi teks, bukan jaminan keamanan."}, id_riwayat
 

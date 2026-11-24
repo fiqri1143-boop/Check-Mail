@@ -102,6 +102,7 @@ footer{font-size:12px}
 #catatan-klasifikasi{width:100%;max-width:none;overflow-wrap:anywhere}
 #catatan-skor{min-height:58px;padding:12px 14px;border-left:3px solid var(--blue);background:color-mix(in srgb,var(--blue) 9%,var(--paper));overflow-wrap:anywhere}
 .classification-note[data-sumber="aturan"]{border-left-color:var(--pink);background:color-mix(in srgb,var(--pink) 13%,var(--paper))}
+.classification-note[data-sumber="konteks"]{border-left-color:var(--mint);background:color-mix(in srgb,var(--mint) 15%,var(--paper))}
 .model-score-details{margin-top:14px;border-top:1px solid var(--line-soft);padding-top:12px}
 .model-score-details summary{cursor:pointer;font-size:14px;font-weight:800;color:var(--purple);padding:4px 0}
 .model-score-details[open] summary{margin-bottom:8px}
