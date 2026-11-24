@@ -118,3 +118,22 @@ footer{font-size:12px}
 .model-score-details[open] summary{margin-bottom:8px}
 
 .indicator-level{display:inline-block;margin:0 0 7px;padding:3px 6px;border:1px solid var(--line-soft);border-radius:3px;color:var(--muted);font:700 10px var(--mono);letter-spacing:.45px}.indicator-chip[data-tingkat="tinggi"] .indicator-level{color:var(--danger);border-color:var(--danger)}.link-assessment{display:grid;gap:5px;padding:12px 14px;border:1px solid var(--line-soft);border-left:4px solid var(--mint);background:var(--paper-raised);border-radius:3px}.link-assessment strong{font-size:14px}.link-assessment small{font-size:13px;line-height:1.5;color:var(--muted);overflow-wrap:anywhere}.link-assessment-sedang{border-left-color:var(--yellow)}.link-assessment-tinggi{border-left-color:var(--danger);background:color-mix(in srgb,var(--pink) 10%,var(--paper-raised))}
+
+.input-panel,.result-panel,.illustration-card,.stats-panel{position:relative;overflow:visible}
+.site-sticker{position:absolute;z-index:4;height:auto;object-fit:contain;pointer-events:none;filter:drop-shadow(2px 4px 0 color-mix(in srgb,var(--line) 85%,transparent));opacity:.96}
+.sticker-heart{top:25%;left:-24px;width:52px}.sticker-arch{bottom:17%;left:-20px;width:44px}
+.sticker-arrow{top:-21px;right:-17px;width:44px}
+.sticker-cloud{top:36%;right:-20px;width:52px}.sticker-flower{bottom:15%;left:-21px;width:46px}
+.sticker-spark{top:-20px;right:-16px;width:43px}.sticker-smile{top:48%;left:-19px;width:47px}
+.sticker-float{animation:stiker-melayang 5.2s ease-in-out infinite}.sticker-heart{animation:stiker-putar 24s linear infinite}.sticker-flower{animation:stiker-putar 30s linear infinite reverse}.sticker-spark{animation-delay:-3s}.sticker-smile{animation-delay:-2s}.sticker-arch{transform:rotate(-5deg)}.sticker-arrow{transform:rotate(-8deg)}
+@keyframes stiker-melayang{0%,100%{translate:0 0}50%{translate:0 -9px}}
+@keyframes stiker-putar{from{rotate:0deg}to{rotate:360deg}}
+@media(max-width:760px){.site-sticker{display:none}}
+@media(prefers-reduced-motion:reduce){.sticker-float,.sticker-heart,.sticker-flower{animation:none}}
+.sticker-host{position:relative;overflow:visible}
+.result-sticker{position:absolute;z-index:3;display:block;pointer-events:none;user-select:none;animation:none;filter:drop-shadow(2px 3px 0 color-mix(in srgb,var(--line) 85%,transparent))}
+.result-sticker-biru{top:8px;right:10px;width:42px}
+.result-sticker-kilau{top:8px;right:12px;width:30px}
+@media(max-width:540px){.result-sticker-biru{top:7px;right:7px;width:34px}.result-sticker-kilau{top:7px;right:8px;width:26px}}
+
+\n

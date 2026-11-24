@@ -86,8 +86,8 @@ function formatTanggal(iso) {
   return Number.isNaN(tanggal.getTime()) ? 'Baru saja' : new Intl.DateTimeFormat('id-ID', { dateStyle: 'medium', timeStyle: 'short' }).format(tanggal);
 }
 
-function renderSkor(probabilitas) {
-  const wadah = document.querySelector('#daftar-skor');
+function renderSkor(probabilitas, pemilihWadah) {
+  const wadah = document.querySelector(pemilihWadah);
   wadah.replaceChildren();
   DAFTAR_LABEL.forEach((label) => {
     const skor = Number(probabilitas[label] || 0);
@@ -154,12 +154,8 @@ function tampilkanHasil(hasil, teksEmail) {
   const rincianSkor = document.querySelector('#detail-skor-ml');
   rincianSkor.open = false;
   document.querySelector('#catatan-skor').textContent = labelDisesuaikan
-    ? penyesuaianKonteks
-      ? `Skor di bawah adalah prediksi model mentah (${labelModel}). Klasifikasi akhir disesuaikan ke ${hasil.label} berdasarkan konteks percakapan; buka rincian untuk membandingkan keduanya.`
-      : penyesuaianPromosi
-        ? `Skor di bawah adalah prediksi model mentah (${labelModel}). Pola promosi mendukung klasifikasi akhir Spam; indeks sinyal promosi tersedia di bawah.`
-        : `Skor di bawah adalah prediksi model mentah (${labelModel}). Aturan risiko mengubah klasifikasi akhir menjadi ${hasil.label}; buka rincian untuk membandingkan keduanya.`
-    : `Keputusan akhir mengikuti prediksi ML: ${hasil.label}. Skor tetap merupakan estimasi, bukan jaminan keamanan.`;
+    ? `Model mentah memilih ${labelModel}, sedangkan keputusan gabungan memilih ${hasil.label}. Indeks utama diselaraskan secara terbatas berdasarkan indikator pendukung, bukan probabilitas terkalibrasi. Skor mentah tersedia di rincian.`
+    : `Model dan keputusan gabungan sama-sama memilih ${hasil.label}. Indeks ini tetap estimasi dan bukan jaminan keamanan.`;
   const profilSpam = hasil.profil_spam;
   const diagnosisSpam = document.querySelector('#diagnosis-spam');
   const tampilkanDiagnosisSpam = hasil.label === 'Spam' && profilSpam && profilSpam.temuan?.length;
@@ -179,7 +175,8 @@ function tampilkanHasil(hasil, teksEmail) {
     Phishing: 'Tindakan: jangan klik tautan, membalas, mengirim kode, atau melakukan pembayaran. Hubungi organisasi melalui kanal resmi yang dicari secara mandiri.'
   };
   document.querySelector('#teks-tindakan').textContent = tindakan[hasil.label] || 'Periksa pengirim dan konteks email.';
-  renderSkor(hasil.probabilitas || {});
+  renderSkor(hasil.skor_keputusan || hasil.probabilitas || {}, '#daftar-skor-keputusan');
+  renderSkor(hasil.probabilitas || {}, '#daftar-skor-ml');
   renderIndikator(hasil.indikator || []);
   const tautan = hasil.tautan || [];
   const wadahTautan = document.querySelector('#tautan-wrap');

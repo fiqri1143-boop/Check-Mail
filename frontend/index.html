@@ -6,6 +6,7 @@
   <meta name="theme-color" content="#10120f">
   <meta name="description" content="Periksa teks email dengan klasifikasi lokal dan indikator ancaman yang bisa dijelaskan.">
   <title>Scan email — Check Mail</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <link rel="stylesheet" href="/style.css">
   <script src="/vendor/lottie.min.js" defer></script>
   <script src="/script.js" defer></script>
@@ -46,18 +47,21 @@
           <div class="actions"><button class="scan-button" id="tombol-analisis" type="button"><span class="scan-button-label">Periksa email</span><span aria-hidden="true">↗</span></button><button class="clear-button" id="tombol-bersihkan" type="button">Bersihkan</button></div>
           <div class="scan-progress" id="scan-progress" role="status" aria-live="polite" hidden><span class="loading-orbit" aria-hidden="true"><i></i><i></i><i></i></span><span><strong>Sedang memeriksa teks…</strong><small>Menjalankan model dan membaca indikator lokal.</small></span></div>
           <p class="status-message" id="status" role="status" aria-live="polite"></p>
+          <img class="site-sticker sticker-spin sticker-heart" src="/assets/stickers/hati.png" alt="" aria-hidden="true">
+          <img class="site-sticker sticker-arch" src="/assets/stickers/lengkung.png" alt="" aria-hidden="true">
         </section>
 
         <section class="result-panel panel" id="panel-hasil" aria-live="polite" hidden>
           <div class="panel-heading"><div><p class="section-kicker">02 / HASIL PEMERIKSAAN</p><h2>Temuan untuk email ini</h2></div><span class="result-stamp">SELESAI</span></div>
           <div class="result-grid">
-            <div class="verdict-card" id="kartu-vonis"><div class="verdict-icon" id="ikon-vonis" aria-hidden="true">✓</div><p class="section-kicker">KLASIFIKASI GABUNGAN</p><h3 id="label-hasil">—</h3><p id="teks-vonis"></p><p class="classification-note" id="catatan-klasifikasi" hidden></p></div>
-            <div class="score-card"><p class="section-kicker">DASAR KEPUTUSAN</p><p class="fine-print" id="catatan-skor">Skor model adalah estimasi, bukan jaminan email aman atau berbahaya.</p><section class="spam-diagnosis" id="diagnosis-spam" aria-label="Diagnosis pola promosi" hidden><p class="section-kicker">PROFIL PROMOSI</p><h3 id="jenis-promosi"></h3><div class="spam-signal-label"><span>Indeks sinyal promosi</span><strong id="nilai-sinyal-spam"></strong></div><div class="spam-signal-track" role="meter" aria-label="Indeks sinyal promosi" aria-valuemin="0" aria-valuemax="90" aria-valuenow="0"><i id="bar-sinyal-spam"></i></div><p class="fine-print">Indeks heuristik dari pola isi, bukan probabilitas model atau bukti pasti penipuan.</p><p class="spam-followup" id="arah-risiko-spam"></p></section><details class="model-score-details" id="detail-skor-ml"><summary>Lihat rincian skor ML mentah</summary><div id="daftar-skor"></div><p class="fine-print">Skor mentah menunjukkan keluaran model teks sebelum aturan keputusan. Ini bukan probabilitas keamanan yang terkalibrasi.</p></details></div>
+            <div class="verdict-card sticker-host" id="kartu-vonis"><div class="verdict-icon" id="ikon-vonis" aria-hidden="true">✓</div><p class="section-kicker">KLASIFIKASI GABUNGAN</p><h3 id="label-hasil">—</h3><p id="teks-vonis"></p><p class="classification-note" id="catatan-klasifikasi" hidden></p><img class="result-sticker result-sticker-biru" src="/assets/stickers/hasil-scan/karakter-biru.png" alt="" aria-hidden="true"></div>
+            <div class="score-card sticker-host"><p class="section-kicker">INDEKS KEPUTUSAN GABUNGAN</p><p class="fine-print" id="catatan-skor">Indeks menggabungkan keluaran model dan indikator keamanan; bukan probabilitas terkalibrasi.</p><div id="daftar-skor-keputusan"></div><section class="spam-diagnosis" id="diagnosis-spam" aria-label="Diagnosis pola promosi" hidden><p class="section-kicker">PROFIL PROMOSI</p><h3 id="jenis-promosi"></h3><div class="spam-signal-label"><span>Indeks sinyal promosi</span><strong id="nilai-sinyal-spam"></strong></div><div class="spam-signal-track" role="meter" aria-label="Indeks sinyal promosi" aria-valuemin="0" aria-valuemax="90" aria-valuenow="0"><i id="bar-sinyal-spam"></i></div><p class="fine-print">Indeks heuristik dari pola isi, bukan probabilitas model atau bukti pasti penipuan.</p><p class="spam-followup" id="arah-risiko-spam"></p></section><details class="model-score-details" id="detail-skor-ml"><summary>Lihat rincian skor ML mentah</summary><div id="daftar-skor-ml"></div><p class="fine-print">Skor ML mentah adalah keluaran model teks sebelum aturan keputusan; bisa berbeda dari indeks gabungan dan bukan probabilitas keamanan terkalibrasi.</p></details><img class="result-sticker result-sticker-kilau" src="/assets/stickers/hasil-scan/kilau-kuning.png" alt="" aria-hidden="true"></div>
           </div>
           <div class="indicators-wrap"><div class="subheading"><h3>Temuan keamanan</h3><span id="jumlah-indikator">0 temuan</span></div><div id="daftar-indikator" class="indicator-list"></div></div>
           <div class="indicators-wrap" id="tautan-wrap" hidden><div class="subheading"><h3>Diagnostik tautan</h3><span>ANALISIS PASIF</span></div><div id="daftar-tautan" class="link-list"></div><p class="fine-print">Tautan tidak dibuka atau diikuti. Diagnostik hanya memeriksa struktur URL yang terlihat; hasilnya bukan pemeriksaan reputasi domain dan bukan jaminan keamanan.</p></div>
           <div class="email-preview"><div class="subheading"><h3>Konten yang dianalisis</h3><span>URL DITAMPILKAN SEBAGAI TEKS</span></div><pre id="pratinjau-email"></pre></div>
           <div class="next-step" id="saran-tindakan"><strong>Langkah aman</strong><span id="teks-tindakan"></span></div>
+          <img class="site-sticker sticker-arrow" src="/assets/stickers/panah.png" alt="" aria-hidden="true">
         </section>
       </section>
 
@@ -73,6 +77,8 @@
             <span class="keycap keycap-mail" aria-hidden="true">✉</span><span class="keycap keycap-safe" aria-hidden="true">✓</span><span class="keycap keycap-alert" aria-hidden="true">!</span>
           </div>
           <div class="illustration-foot"><span>ILUSTRASI LOKAL</span><span>Slot siap diganti dengan Lottie pilihanmu</span></div>
+          <img class="site-sticker sticker-float sticker-cloud" src="/assets/stickers/awan.png" alt="" aria-hidden="true">
+          <img class="site-sticker sticker-spin sticker-flower" src="/assets/stickers/bunga.png" alt="" aria-hidden="true">
         </section>
 
         <section class="stats-panel panel" aria-labelledby="judul-statistik">
@@ -83,6 +89,8 @@
             <div class="stat-row"><span>Spam</span><div class="bar-track"><i class="bar-spam" id="bar-spam"></i></div><b id="stat-spam">0</b></div>
             <div class="stat-row"><span>Phishing</span><div class="bar-track"><i class="bar-phishing" id="bar-phishing"></i></div><b id="stat-phishing">0</b></div>
           </div>
+          <img class="site-sticker sticker-float sticker-spark" src="/assets/stickers/bintang.png" alt="" aria-hidden="true">
+          <img class="site-sticker sticker-float sticker-smile" src="/assets/stickers/senyum.png" alt="" aria-hidden="true">
         </section>
         <section class="privacy-note"><span aria-hidden="true">◈</span><p><strong>Data tetap lokal.</strong><br>Riwayat menyimpan cuplikan singkat. Isi email tidak dikirim ke layanan luar.</p></section>
       </aside>

@@ -4,6 +4,7 @@ from __future__ import annotations
 import hashlib
 import html
 import io
+from difflib import SequenceMatcher
 from html.parser import HTMLParser
 import ipaddress
 import json
@@ -49,7 +50,7 @@ POLA_DATA_PRIBADI_SENSITIF = re.compile(
 POLA_TINDAKAN_DATA_PRIBADI = re.compile(
     r"\b(?:minta|meminta|diminta|isi|mengisi|isikan|lengkapi|melengkapi|"
     r"masukkan|memasukkan|kirim|mengirim|kirimkan|berikan|memberikan|"
-    r"unggah|mengunggah|lampirkan|mencantumkan|cantumkan|serahkan|"
+    r"unggah|mengunggah|lampirkan|mencantumkan|cantumkan|sertakan|menyertakan|serahkan|"
     r"sampaikan|bagikan|konfirmasi|konfirmasikan|verifikasi|verifikasikan|perbarui|memperbarui|"
     r"submit|provide|send|share|upload|enter|fill(?: out)?|confirm|verify|"
     r"update|reply with|attach|request(?:ing)?|ask(?:ing)? for|"
@@ -187,6 +188,162 @@ def analisis_pola_promosi(teks: str, ada_tautan: bool = False) -> dict:
             "Ini tampak sebagai promosi komersial. Status tidak diinginkan bergantung pada apakah penerima pernah menyetujuinya; periksa tautan secara independen."
         ),
     }
+
+
+def deteksi_konteks_phishing(teks: str, alamat_pengirim: str = "", tautan: list | None = None) -> list[dict[str, str]]:
+    """Cari gabungan sinyal impersonasi, umpan data, OTP, dan tekanan pembayaran."""
+    isi = teks.casefold()
+    daftar_tautan = tautan or []
+    ada_tautan = bool(daftar_tautan) or bool(re.search(r"(?:https?://|www\.)[^\s<>\]\[(){}\"']+", isi, re.I))
+    temuan: list[dict[str, str]] = []
+
+    merek_dikenal = [
+        ("J&T Express", r"\bj\s*&\s*t(?:\s+express)?\b|\bjnt\s+express\b", ("jtexpress.com", "jtexpress.co.id", "jtexpress.id", "jet.co.id", "jnt.co.id")),
+        ("DANA", r"\b(?:akun|layanan|tim keamanan|aplikasi)\s+dana\b|\btim.{0,30}\bdana\b", ("dana.id", "dana.co.id", "danaindonesia.id")),
+        ("Microsoft", r"\bmicrosoft\b", ("microsoft.com", "microsoftonline.com", "microsoft365.com", "office.com", "live.com", "outlook.com")),
+    ]
+    tujuan_tidak_selaras = []
+    domain_pengirim = parseaddr(alamat_pengirim)[1].rsplit("@", 1)[-1].casefold().rstrip(".") if alamat_pengirim else ""
+    if not domain_pengirim:
+        cocok_pengirim = re.search(r"(?:from|dari)\s*:\s*[^\n<]{0,100}<([^>\s]+@[^>\s]+)>", teks, re.I)
+        if cocok_pengirim:
+            domain_pengirim = cocok_pengirim.group(1).rsplit("@", 1)[-1].casefold().rstrip(".")
+
+    for nama_merek, pola_merek, domain_resmi in merek_dikenal:
+        if not re.search(pola_merek, isi, re.I):
+            continue
+        pengirim_selaras = any(domain_pengirim == domain or domain_pengirim.endswith("." + domain) for domain in domain_resmi)
+        domain_tujuan_ditemukan = False
+        mirip_tujuan = False
+        for item in daftar_tautan:
+            host = (item.get("domain_tanam") or item.get("domain") or "").casefold().rstrip(".")
+            if not host:
+                continue
+            if any(host == domain or host.endswith("." + domain) for domain in domain_resmi):
+                domain_tujuan_ditemukan = True
+                break
+            label_host = re.split(r"[.-]", host)
+            for label in label_host:
+                if len(label) >= 5 and any(SequenceMatcher(None, label, domain.split(".")[0]).ratio() >= 0.78 for domain in domain_resmi):
+                    mirip_tujuan = True
+        if daftar_tautan and not domain_tujuan_ditemukan and (domain_pengirim and not pengirim_selaras or mirip_tujuan):
+            tujuan_tidak_selaras.append(nama_merek)
+            temuan.append({
+                "kode": "tautan_merek_tidak_selaras",
+                "nama": f"Tautan tidak selaras dengan merek {nama_merek}",
+                "penjelasan": f"Isi mengatasnamakan {nama_merek}, tetapi domain pengirim atau tujuan tautan tidak cocok dengan domain layanan tersebut. Ini merupakan sinyal impersonasi; jangan masuk atau memberikan data lewat tautan itu.",
+                "tingkat": "tinggi",
+            })
+            if mirip_tujuan:
+                temuan.append({
+                    "kode": "domain_mirip_merek",
+                    "nama": "Domain tujuan menyerupai nama merek",
+                    "penjelasan": "Nama host memiliki kemiripan ejaan dengan merek yang disebut, tetapi bukan domain resminya yang dikenali.",
+                    "tingkat": "tinggi",
+                })
+            break
+
+    konteks_paket = bool(re.search(r"\b(?:paket|kiriman|pengiriman|ekspedisi)\b", isi))
+    alamat_diperbarui = bool(re.search(r"\b(?:alamat|alamat pengiriman)\b.{0,90}\b(?:kurang lengkap|tidak lengkap|perbarui|memperbarui|lengkapi|diperbarui)\b|\b(?:perbarui|memperbarui|lengkapi)\b.{0,80}\b(?:alamat|alamat pengiriman)\b", isi))
+    if konteks_paket and alamat_diperbarui and ada_tautan:
+        temuan.append({
+            "kode": "paket_minta_pembaruan_alamat",
+            "nama": "Klaim paket tertahan meminta pembaruan alamat lewat tautan",
+            "penjelasan": "Pesan menyatakan kiriman bermasalah lalu meminta perubahan alamat melalui tautan. Periksa status hanya lewat aplikasi atau situs kurir yang dibuka sendiri.",
+            "tingkat": "tinggi",
+        })
+
+    ada_otp = bool(re.search(r"\b(?:otp|kode verifikasi sekali pakai|kode sekali pakai|one[- ]time password)\b", isi))
+    konteks_akun_mencurigakan = bool(re.search(r"\b(?:aktivitas mencurigakan|aktivitas masuk|akses akun|perangkat baru|masuk tidak biasa|login tidak biasa)\b", isi))
+    if ada_otp:
+        temuan.append({
+            "kode": "kode_otp_tercantum",
+            "nama": "Pesan memuat kode OTP",
+            "penjelasan": "OTP adalah rahasia autentikasi. Jangan membagikan atau memasukkannya melalui tautan dari email; kode yang muncul sendiri tidak membuktikan email ini sah.",
+            "tingkat": "tinggi",
+        })
+    if ada_otp and konteks_akun_mencurigakan and ada_tautan and tujuan_tidak_selaras:
+        temuan.append({
+            "kode": "otp_aktivitas_akun_tautan_asing",
+            "nama": "OTP digabung dengan klaim aktivitas akun dan tautan asing",
+            "penjelasan": "Kombinasi kode akses, klaim aktivitas akun mencurigakan, dan tautan yang tidak selaras berisiko mengarahkan korban untuk menyetujui akses atau menyerahkan kode.",
+            "tingkat": "tinggi",
+        })
+
+    konteks_undian = bool(re.search(r"\b(?:pemenang|undian|hadiah utama|terpilih sebagai pemenang|klaim hadiah)\b", isi))
+    if konteks_undian and deteksi_permintaan_data_pribadi(teks):
+        temuan.append({
+            "kode": "undian_meminta_identitas",
+            "nama": "Klaim hadiah meminta identitas resmi",
+            "penjelasan": "Pesan menyatakan penerima menang tanpa konteks partisipasi yang jelas lalu meminta NIK/identitas untuk pencairan. Jangan kirim identitas untuk klaim tak terduga.",
+            "tingkat": "tinggi",
+        })
+
+    konteks_tilang = bool(re.search(r"\b(?:e-?tilang|tilang|pelanggaran lalu lintas|pelanggaran berkendara)\b", isi))
+    konteks_denda = bool(re.search(r"\b(?:denda|faktur pembayaran|tagihan|menyelesaikan pembayaran)\b", isi))
+    ancaman_kendaraan = bool(re.search(r"\b(?:pemblokiran|diblokir|blokir).{0,45}\b(?:stnk|kendaraan|registrasi)\b|\b(?:stnk|kendaraan|registrasi)\b.{0,45}\b(?:pemblokiran|diblokir|blokir)\b", isi))
+    if konteks_tilang and konteks_denda and ancaman_kendaraan and ada_tautan:
+        tujuan = next(((x.get("domain_tanam") or x.get("domain") or "").casefold() for x in daftar_tautan if x.get("domain_tanam") or x.get("domain")), "")
+        domain_pemerintah = tujuan.endswith((".go.id", ".gov.id"))
+        if tujuan and not domain_pemerintah:
+            temuan.append({
+                "kode": "denda_resmi_domain_nonpemerintah",
+                "nama": "Ancaman blokir STNK diarahkan ke domain nonpemerintah",
+                "penjelasan": "Pesan mengaitkan denda lalu lintas dengan ancaman pemblokiran STNK, tetapi tujuan tautan tidak berada pada domain pemerintah yang dikenali. Verifikasi melalui kanal resmi kepolisian/instansi terkait.",
+                "tingkat": "tinggi",
+            })
+
+    konteks_masuk_asing = bool(re.search(r"\b(?:aktivitas masuk.{0,60}tidak biasa|masuk.{0,60}lokasi.{0,45}perangkat|perangkat.{0,45}belum pernah digunakan|login.{0,50}mencurigakan)\b", isi))
+    ajakan_reset_sandi = bool(re.search(r"\b(?:ubah|mengubah|atur ulang|reset|ganti).{0,55}\b(?:kata sandi|password)\b", isi))
+    if konteks_masuk_asing and ajakan_reset_sandi and ada_tautan and "tautan_merek_tidak_selaras" in {x["kode"] for x in temuan}:
+        temuan.append({
+            "kode": "login_asing_reset_melalui_tautan",
+            "nama": "Peringatan login mendorong reset sandi melalui tautan tidak selaras",
+            "penjelasan": "Klaim login tak biasa diikuti instruksi mengubah kata sandi lewat tautan yang tidak cocok dengan domain penyedia. Buka pengaturan akun secara mandiri.",
+            "tingkat": "tinggi",
+        })
+
+    # Hilangkan temuan duplikat jika beberapa pola mendeteksi sinyal yang sama.
+    unik = {}
+    for item in temuan:
+        unik[item["kode"]] = item
+    return list(unik.values())
+
+
+def hitung_skor_keputusan(probabilitas: dict, label_model: str, label_akhir: str, indikator: list) -> dict[str, float]:
+    """Buat indeks skor yang mengikuti label hibrida; bukan probabilitas terkalibrasi."""
+    if label_model == label_akhir:
+        return dict(probabilitas)
+
+    kode_pendukung = {
+        "Phishing": {
+            "permintaan_data_pribadi", "minta_kredensial", "rekening_pembayaran_berubah",
+            "tagihan_dan_tekanan", "verifikasi_identitas_akun", "login_tidak_biasa",
+            "ancaman_gangguan_layanan", "tautan_merek_tidak_selaras", "domain_mirip_merek",
+            "paket_minta_pembaruan_alamat", "otp_aktivitas_akun_tautan_asing",
+            "undian_meminta_identitas", "denda_resmi_domain_nonpemerintah",
+            "login_asing_reset_melalui_tautan", "tautan_pengalih", "tautan_tidak_cocok",
+        },
+        "Normal": {"percakapan_personal"},
+    }
+    relevan = [
+        item for item in indikator
+        if item.get("kode") in kode_pendukung.get(label_akhir, set())
+        or (label_akhir == "Spam" and str(item.get("kode", "")).startswith("spam_"))
+    ]
+    bobot_tingkat = {"tinggi": 0.10, "sedang": 0.06, "rendah": 0.03}
+    dukungan = min(0.30, sum(bobot_tingkat.get(item.get("tingkat"), 0.03) for item in relevan))
+    # Label aturan tetap yang diputuskan sistem; besaran skor naik secara
+    # terbatas sesuai bukti pendukung, tidak pernah dipaksakan menjadi 100%.
+    skor_label_akhir = min(0.88, 0.56 + dukungan)
+    skor_sisa = 1.0 - skor_label_akhir
+    label_lain = [kelas for kelas in probabilitas if kelas != label_akhir]
+    bobot_lain = sum(float(probabilitas.get(kelas, 0.0)) for kelas in label_lain)
+    hasil = {label_akhir: skor_label_akhir}
+    for kelas in label_lain:
+        proporsi = float(probabilitas.get(kelas, 0.0)) / bobot_lain if bobot_lain else 1 / max(1, len(label_lain))
+        hasil[kelas] = skor_sisa * proporsi
+    return {kelas: round(skor, 4) for kelas, skor in hasil.items()}
 
 app = Flask(__name__, static_folder=None)
 app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024 + 64 * 1024
@@ -484,6 +641,14 @@ def jalankan_analisis(teks_email: str, alamat_pengirim: str = "", alamat_balasan
         re.search(r"(?:https?://|www\.)[^\s<>\]\[(){}\"']+", teks_email, flags=re.I)
     )
     profil_spam = analisis_pola_promosi(teks_email, ada_tautan_email)
+    # Analisis kontekstual memakai relasi klaim merek, pengirim, tujuan tautan,
+    # serta maksud pesan. Sinyalnya ditambahkan sebelum keputusan akhir agar
+    # penjelasan dan klasifikasi memakai sumber temuan yang sama.
+    temuan_kontekstual = deteksi_konteks_phishing(teks_email, alamat_pengirim, tautan)
+    for temuan in temuan_kontekstual:
+        if not any(item["kode"] == temuan["kode"] for item in indikator):
+            indikator.append(temuan)
+    kode_indikator = {item["kode"] for item in indikator}
     kode_temuan = {item["kode"] for item in indikator}
     for temuan in profil_spam["temuan"]:
         if temuan["kode"] not in kode_temuan:
@@ -494,10 +659,27 @@ def jalankan_analisis(teks_email: str, alamat_pengirim: str = "", alamat_balasan
     jenis_penyesuaian = None
     # Keputusan akhir mengutamakan pola tindakan berisiko yang berpadu:
     # data sensitif, perubahan rekening, atau akun terancam + verifikasi/link.
+    pemicu_phishing_kontekstual = {
+        "tautan_merek_tidak_selaras", "domain_mirip_merek", "paket_minta_pembaruan_alamat",
+        "otp_aktivitas_akun_tautan_asing", "undian_meminta_identitas",
+        "denda_resmi_domain_nonpemerintah", "login_asing_reset_melalui_tautan",
+    }
     if "permintaan_data_pribadi" in kode_indikator or "minta_kredensial" in kode_indikator:
         label = "Phishing"
         jenis_penyesuaian = "aturan_risiko"
         alasan_label = "Email meminta data pribadi atau akses akun. Check Mail menaikkan hasil akhir menjadi Phishing berdasarkan aturan risiko, meskipun teks model mentah memilih Spam atau Normal. Jangan kirim data; verifikasi melalui kanal resmi."
+    elif kode_indikator.intersection(pemicu_phishing_kontekstual):
+        label = "Phishing"
+        jenis_penyesuaian = "aturan_risiko"
+        dasar_phishing = [item["nama"] for item in indikator if item["kode"] in pemicu_phishing_kontekstual]
+        rincian_phishing = "; ".join(dasar_phishing[:3])
+        alasan_label = (
+            f"Sinyal utama: {rincian_phishing}. Email menggabungkan konteks penyamaran/umpan tindakan "
+            "dengan tujuan tautan yang tidak selaras atau ancaman yang meminta tindakan sensitif. "
+            "Sinyal ini lebih kuat daripada gaya bahasa promosi. "
+            "Jangan ikuti tautan; verifikasi melalui aplikasi atau kanal resmi yang dibuka sendiri. "
+            "Skor ML mentah tetap ditampilkan terpisah."
+        )
     elif "rekening_pembayaran_berubah" in kode_indikator and kode_indikator.intersection({"mendesak", "tagihan_dan_tekanan", "ancaman_gangguan_layanan", "tautan_pengalih", "tautan_tidak_cocok"}):
         label = "Phishing"
         jenis_penyesuaian = "aturan_risiko"
@@ -543,6 +725,7 @@ def jalankan_analisis(teks_email: str, alamat_pengirim: str = "", alamat_balasan
             ),
             "tingkat": "rendah",
         })
+    skor_keputusan = hitung_skor_keputusan(probabilitas, label_model, label, indikator)
     id_riwayat = simpan_analisis(teks_email, label, probabilitas, indikator)
     ringkasan_tautan = [
         {"domain": item.get("domain", ""), "teks_tampil": item.get("teks_tampil", ""),
@@ -551,7 +734,8 @@ def jalankan_analisis(teks_email: str, alamat_pengirim: str = "", alamat_balasan
     ]
     return {"label": label, "label_model": label_model, "alasan_label": alasan_label,
             "jenis_penyesuaian": jenis_penyesuaian,
-            "probabilitas": probabilitas, "indikator": indikator, "profil_spam": profil_spam,
+            "probabilitas": probabilitas, "skor_keputusan": skor_keputusan,
+            "indikator": indikator, "profil_spam": profil_spam,
             "tautan": ringkasan_tautan, "catatan": "Skor model adalah estimasi teks, bukan jaminan keamanan."}, id_riwayat
 
 
