@@ -79,6 +79,36 @@ def deteksi_permintaan_data_pribadi(teks: str) -> bool:
                 return True
     return False
 
+
+def deteksi_percakapan_personal(teks: str) -> bool:
+    """Kenali percakapan antarindividu dari gabungan relasi, interaksi, dan rencana."""
+    teks_normal = re.sub(r"\s+", " ", teks.casefold())
+    pola_relasi = re.compile(
+        r"\b(?:halo|hai|hi|hey)\s+[\w'-]+\b|\bapa kabar\b|"
+        r"\blama (?:tidak|tak|nggak|gak) (?:bertemu|ketemu|berkabar)\b|"
+        r"\bsudah lama (?:tidak|tak|nggak|gak)\b|\bkangen\b|"
+        r"\bsince we last (?:met|talked)\b|\blong time no see\b|"
+        r"\bhow have you been\b",
+        re.IGNORECASE,
+    )
+    pola_interaksi = re.compile(
+        r"\b(?:kalau kamu|jika kamu|kalau tidak sibuk|kabari ya|beri tahu ya|"
+        r"siapa tahu kita|mampir|ngopi|ngobrol|berbincang|ketemu|bertemu|"
+        r"makan bersama|jalan bersama|main bersama|hang out|catch up|"
+        r"grab (?:a )?(?:coffee|lunch|dinner)|meet up|let me know|are you free)\b",
+        re.IGNORECASE,
+    )
+    pola_rencana = re.compile(
+        r"\b(?:minggu depan|akhir pekan|weekend|besok|lusa|hari (?:senin|selasa|rabu|kamis|jumat|sabtu|minggu)|"
+        r"(?:senin|selasa|rabu|kamis|jumat|sabtu|minggu) sore|pukul \d{1,2}|jam \d{1,2}|"
+        r"next week|this weekend|tomorrow|on (?:monday|tuesday|wednesday|thursday|friday|saturday|sunday))\b",
+        re.IGNORECASE,
+    )
+    ada_relasi = bool(pola_relasi.search(teks_normal))
+    ada_interaksi = bool(pola_interaksi.search(teks_normal))
+    ada_rencana = bool(pola_rencana.search(teks_normal))
+    return ada_interaksi and (ada_relasi or (ada_rencana and re.search(r"\b(?:saya|aku|kamu|kita|we|i|you)\b", teks_normal)))
+
 app = Flask(__name__, static_folder=None)
 app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024 + 64 * 1024
 BATAS_BERKAS_EMAIL = 10 * 1024 * 1024
@@ -390,11 +420,30 @@ def jalankan_analisis(teks_email: str, alamat_pengirim: str = "", alamat_balasan
         alasan_label = "Email menggabungkan klaim keamanan/aktivitas akun, desakan atau ancaman akses, dan tautan untuk melakukan verifikasi. Kombinasi ini berisiko phishing; buka aplikasi atau situs resmi secara mandiri, jangan lewat tautan email. Skor ML mentah tetap ditampilkan terpisah."
     elif label_model == "Spam" and not tautan and not kode_indikator.intersection({
         "mendesak", "rekening_pembayaran_berubah", "tagihan_dan_tekanan", "verifikasi_identitas_akun",
-        "ancaman_gangguan_layanan", "minta_kredensial", "ancaman_akun", "tautan_ip", "tautan_pendek",
-        "domain_punycode", "domain_balasan_berbeda", "tautan_tidak_cocok",
-    }) and re.search(r"\b(jadwal konsultasi|jadwal kuliah|konfirmasi jadwal|pertemuan akan dilaksanakan|agenda rapat|draft proposal|meeting scheduled)\b", teks_email, flags=re.I):
+        "ancaman_gangguan_layanan", "minta_kredensial", "permintaan_data_pribadi", "ancaman_akun",
+        "tautan_ip", "tautan_pendek", "domain_punycode", "domain_balasan_berbeda", "tautan_tidak_cocok",
+    }) and not re.search(
+        r"\b(?:promo|promosi|diskon|voucher|cashback|giveaway|flash sale|penawaran khusus|"
+        r"beli sekarang|daftar sekarang|subscribe now|buy now|shop now|limited offer|discount code)\b",
+        teks_email,
+        flags=re.I,
+    ) and deteksi_percakapan_personal(teks_email):
         label = "Normal"
-        alasan_label = "Model teks mentah memilih Spam, tetapi isi menunjukkan konteks penjadwalan/kegiatan rutin tanpa indikator risiko atau tautan. Tetap pastikan email ini memang diharapkan."
+        alasan_label = (
+            "Model teks mentah memilih Spam, tetapi pesan menunjukkan percakapan personal "
+            "dengan interaksi dan rencana yang spesifik. Tidak ditemukan tautan, ajakan promosi, "
+            "atau indikator risiko tinggi. Hasil akhir disesuaikan menjadi Normal; tetap pastikan "
+            "alamat pengirim memang dikenal."
+        )
+        indikator.append({
+            "kode": "percakapan_personal",
+            "nama": "Konteks percakapan personal",
+            "penjelasan": (
+                "Terdapat sapaan atau konteks relasi personal, ajakan berinteraksi, dan rencana "
+                "yang spesifik. Ini mendukung konteks korespondensi biasa, tetapi bukan verifikasi identitas pengirim."
+            ),
+            "tingkat": "rendah",
+        })
     id_riwayat = simpan_analisis(teks_email, label, probabilitas, indikator)
     ringkasan_tautan = [
         {"domain": item.get("domain", ""), "teks_tampil": item.get("teks_tampil", ""),
